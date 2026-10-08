@@ -24,6 +24,8 @@
  * SOFTWARE.
  */
 
+ // integration of the modules: ICRC, ACK flow control, retransmission
+
 `timescale 1ns / 1ps
 
 `define DBG_IBV

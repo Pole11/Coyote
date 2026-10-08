@@ -158,7 +158,7 @@ always_comb begin
     rx_tcp_ipv4         = rx_ipv4 & rx_axis_net.tdata[23*8+7:23*8] == 8'h06;
     // rx_rocev2_ipv4      = rx_udp_ipv4 & {rx_axis_net.tdata[(16+rx_ip_header_len)*8+7:(16+rx_ip_header_len)*8], rx_axis_net.tdata[(17+rx_ip_header_len)*8+7:(17+rx_ip_header_len)*8]} == 16'hb712;
     rx_rocev2_ipv4      = rx_udp_ipv4 & {rx_axis_net.tdata[36*8+7:36*8], rx_axis_net.tdata[37*8+7:37*8]} == 16'hb712;
-    rx_rocev2_ipv4_aeth = rx_axis_net.tdata[42*8+7:42*8] == 8'h10 | rx_axis_net.tdata[42*8+7:42*8] == 8'h0d | rx_axis_net.tdata[42*8+7:42*8] == 8'h0f | rx_axis_net.tdata[42*8+7:42*8] == 8'h11; // OP = RC_READ_RESP_(ONLY/FIRST/LAST), RC_ACK
+    rx_rocev2_ipv4_aeth = rx_axis_net.tdata[42*8+7:42*8] == 8'h10 | rx_axis_net.tdata[42*8+7:42*8] == 8'h0d | rx_axis_net.tdata[42*8+7:42*8] == 8'h0f | rx_axis_net.tdata[42*8+7:42*8] == 8'h11; // OP = RC_READ_RESP_(ONLY/FIRST/LAST), MRC_ACK
     rx_rocev2_ipv4_reth = rx_axis_net.tdata[42*8+7:42*8] == 8'h0a | rx_axis_net.tdata[42*8+7:42*8] == 8'h06 | rx_axis_net.tdata[42*8+7:42*8] == 8'h0b | rx_axis_net.tdata[42*8+7:42*8] == 8'h0c; // OP = RC_WRITE_(ONLY/FIRST), RC_WRITE_ONLY_WITH_IMM, RC_READ_REQUEST
 
     // TX
@@ -174,7 +174,7 @@ always_comb begin
     tx_tcp_ipv4         = tx_ipv4 & tx_axis_net.tdata[23*8+7:23*8] == 8'h06;
     // tx_rocev2_ipv4      = tx_udp_ipv4 & {tx_axis_net.tdata[(16+rx_ip_header_len)*8+7:(16+rx_ip_header_len)*8], tx_axis_net.tdata[(17+rx_ip_header_len)*8+7:(17+rx_ip_header_len)*8]} == 16'hb712;
     tx_rocev2_ipv4      = tx_udp_ipv4 & {tx_axis_net.tdata[36*8+7:36*8], tx_axis_net.tdata[37*8+7:37*8]} == 16'hb712;
-    tx_rocev2_ipv4_aeth = tx_axis_net.tdata[42*8+7:42*8] == 8'h10 | tx_axis_net.tdata[42*8+7:42*8] == 8'h0d | tx_axis_net.tdata[42*8+7:42*8] == 8'h0f | tx_axis_net.tdata[42*8+7:42*8] == 8'h11; // OP = RC_READ_RESP_(ONLY/FIRST/LAST), RC_ACK
+    tx_rocev2_ipv4_aeth = tx_axis_net.tdata[42*8+7:42*8] == 8'h10 | tx_axis_net.tdata[42*8+7:42*8] == 8'h0d | tx_axis_net.tdata[42*8+7:42*8] == 8'h0f | tx_axis_net.tdata[42*8+7:42*8] == 8'h11; // OP = RC_READ_RESP_(ONLY/FIRST/LAST), MRC_ACK
     tx_rocev2_ipv4_reth = tx_axis_net.tdata[42*8+7:42*8] == 8'h0a | tx_axis_net.tdata[42*8+7:42*8] == 8'h06 | tx_axis_net.tdata[42*8+7:42*8] == 8'h0b | tx_axis_net.tdata[42*8+7:42*8] == 8'h0c; // OP = RC_WRITE_(ONLY/FIRST), RC_WRITE_ONLY_WITH_IMM, RC_READ_REQUEST
 end
 

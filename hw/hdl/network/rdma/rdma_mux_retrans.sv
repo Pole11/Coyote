@@ -24,6 +24,8 @@
  * SOFTWARE.
  */
 
+// retransmission logic
+
 `timescale 1ns / 1ps
 
 import lynxTypes::*;

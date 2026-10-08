@@ -24,6 +24,8 @@
  * SOFTWARE.
  */
 
+// ACK-clocked flow control
+
 import lynxTypes::*;
 
 module rdma_flow (

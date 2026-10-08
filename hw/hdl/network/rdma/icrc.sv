@@ -24,6 +24,8 @@
  * SOFTWARE.
  */
 
+// checksum pipeline
+
 // import lynxTypes::*;
 
 // Replace the Streaming Inputs with simple bit inputs for easier testing 

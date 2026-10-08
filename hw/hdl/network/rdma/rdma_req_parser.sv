@@ -24,6 +24,8 @@
  * SOFTWARE.
  */
 
+// it looks like it is unused
+
 `timescale 1ns / 1ps
 
 import lynxTypes::*;

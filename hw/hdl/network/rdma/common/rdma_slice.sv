@@ -24,6 +24,8 @@
  * SOFTWARE.
  */
 
+// it looks like it is unused
+
 import lynxTypes::*;
 
 `include "axi_macros.svh"
