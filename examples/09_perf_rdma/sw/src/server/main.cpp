@@ -42,6 +42,8 @@ void run_bench(
     coyote::cThread &coyote_thread, coyote::rdmaSg &sg, 
     int *mem, uint transfers, uint n_runs, bool operation
 ) {
+    // A scatter-gather (SG) entry is a small struct that describes one data transfer: which buffer, how many bytes, and which vFPGA stream it uses. 
+    // You pass it to cThread::invoke(oper, sg), which packs it into the command words written to the FPGA’s control registers.
     // When writing, the server asserts the written payload is correct (which the client sets)
     // When reading, the client asserts the read payload is correct (which the server sets)
     for (int i = 0; i < sg.len / sizeof(int); i++) {
