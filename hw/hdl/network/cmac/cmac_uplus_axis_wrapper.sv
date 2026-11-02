@@ -555,7 +555,7 @@ cmac_usplus_axis_0 inst_cmac_0 (
         .gt_txpolarity(0),
 `endif
         .gt_rxrate(0),
-        .gt_txdiffctrl(0),
+        .gt_txdiffctrl({4{5'b11000}}),
         .gt_txinhibit(0),
         .gt_txpippmen(0),
         .gt_txpippmsel(0),
@@ -575,6 +575,13 @@ cmac_usplus_axis_0 inst_cmac_0 (
         .gt_rxbufstatus(),
 
         .gt_drpclk(init_clk),
+
+        // add RS-FEC
+        .ctl_tx_rsfec_enable(1),
+        .ctl_rx_rsfec_enable(1),
+        .ctl_rx_rsfec_enable_correction(1),
+        .ctl_rx_rsfec_enable_indication(1),
+        .ctl_rsfec_ieee_error_indication_mode(1),
 
         .gt0_drpdo(),
         .gt0_drprdy(),
