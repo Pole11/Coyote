@@ -134,7 +134,7 @@ int main(int argc, char *argv[])  {
         
         unsigned long rx = counter("IBV RX pkgs:"), drop = counter("PSN drop cnt:");
         
-        std::cout << "Run this on computer that emulates the requestor:" << std::endl;
+        std::cout << "Run this on the computer that emulates the requestor:" << std::endl;
         printf("python3 injector.py 0x%x 0x%x 0x%lx %d\n\n", qp->local.qpn, qp->local.psn, (uint64_t) qp->local.vaddr, (int) coyote_thread.checkCompleted(coyote::CoyoteOper::LOCAL_WRITE));
         
         while (!stop) {
@@ -142,7 +142,8 @@ int main(int argc, char *argv[])  {
             unsigned long new_rx = counter("IBV RX pkgs:"), new_drop = counter("PSN drop cnt:");
             if (new_rx == rx) continue;
 
-            std::cout << "Received " << new_rx - rx << " packets, " << new_drop - drop << " dropped (duplicate or out of window)" << std::endl;            std::cout << "WRITE messages completed so far: " << coyote_thread.checkCompleted(coyote::CoyoteOper::LOCAL_WRITE) << std::endl;
+            std::cout << "Received " << new_rx - rx << " packets, " << new_drop - drop << " dropped (duplicate or out of window)" << std::endl;            
+            std::cout << "WRITE messages completed so far: " << coyote_thread.checkCompleted(coyote::CoyoteOper::LOCAL_WRITE) << std::endl;
             qp->local.psn = (qp->local.psn + (new_rx - rx) - (new_drop - drop)) & 0xFFFFFF;
             std::cout << "This is memory after the packet arrived:" << std::endl;
             
@@ -157,9 +158,9 @@ int main(int argc, char *argv[])  {
             }
             
             std::cout << std::dec << std::endl;
-            std::cout << "Run this on computer that emulates the requestor:" << std::endl;
-            printf("python3 injector.py 0x%x 0x%x 0x%lx\n\n", qp->local.qpn, qp->local.psn, (uint64_t) qp->local.vaddr);
-
+            std::cout << "Run this on the computer that emulates the requestor:" << std::endl;
+            printf("python3 injector.py 0x%x 0x%x 0x%lx %d\n\n", qp->local.qpn, qp->local.psn, (uint64_t) qp->local.vaddr, (int) coyote_thread.checkCompleted(coyote::CoyoteOper::LOCAL_WRITE));
+            
             rx = new_rx;
             drop = new_drop;
         }
