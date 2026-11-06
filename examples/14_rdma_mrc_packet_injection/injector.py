@@ -6,19 +6,23 @@ PEER_QPN = 0x100         			# qp->remote.qpn set in the -p block, the FPGA sends
 OUTPUT_NET_DEV = b"enxd0c0bf267d20"	# change it according to your setup
 NUM_OF_PACKETS = 5					# for now we only send write only 0xca
 STATE_FILE = "fpga_state.json"
-TIMEOUT = 2 						# a number or None
+TIMEOUT = None 						# a number or None, use None for replays of the integration test
+IDLE = 0.2							# seconds of silence that end a group (fast mode)
+MEM_SIZE = 1 << 20					# must match -X of the C++ program
 
 # receive parameters from argv
 qpn, psn, vaddr, msn = (int(x, 0) for x in sys.argv[1:5])
+trace_file, tb_qp = (sys.argv[5], int(sys.argv[6], 0)) if len(sys.argv) > 6 else (None, None)
 
 cack, msn_now, arrived = (psn - 1) & 0xFFFFFF, msn, set()
-try:
-	state = json.load(open(STATE_FILE))
-	if state["qpn"] == qpn and state["vaddr"] == vaddr:
-		cack, msn_now, arrived = state["cack"], state["msn"], set(state["arrived"])
-		print("Using saved FPGA state: cack", hex(cack), "msn", msn_now, "received above cack", [hex(x) for x in sorted(arrived)])
-except FileNotFoundError:
-	pass
+if not trace_file:
+	try:
+		state = json.load(open(STATE_FILE))
+		if state["qpn"] == qpn and state["vaddr"] == vaddr:
+			cack, msn_now, arrived = state["cack"], state["msn"], set(state["arrived"])
+			print("Using saved FPGA state: cack", hex(cack), "msn", msn_now, "received above cack", [hex(x) for x in sorted(arrived)])
+	except FileNotFoundError:
+		pass
 
 sending_packets = []
 real_received_packet = []
@@ -96,9 +100,10 @@ def send_packets(my_socket):
 		log = []
 		k = 0
 		last = t0
-		real_received_packet.append([])
-		while (k < len(sending_packets) or sum(r[0] == 0xD1 for r in real_received_packet[0]) < len(expected_received_packet)) and time.monotonic() - last < 1:
-			if k < len(sending_packets):
+		while k < len(sending_packets) or time.monotonic() - last < IDLE:
+			if k < len(sending_packets) and (k == 0 or not group_end[k - 1] or time.monotonic() - last >= IDLE):
+				if k == 0 or group_end[k - 1]:
+					real_received_packet.append([])
 				p = int.from_bytes(sending_packets[k][9:12], "big")
 				my_socket.sendto(sending_packets[k], (FPGA_IP, 4791))
 				last = time.monotonic()
@@ -110,7 +115,7 @@ def send_packets(my_socket):
 			except BlockingIOError:
 				continue
 			last = time.monotonic()
-			real_received_packet[0].append(reply)
+			real_received_packet[-1].append(reply)
 			if reply[0] == 0xD1:
 				cack = int.from_bytes(reply[9:12], "big")
 				pending = [x for x in pending if ((cack - x) & 0xFFFFFF) >= 0x800000]
@@ -125,74 +130,115 @@ def send_packets(my_socket):
 	print("")
 
 def print_reply_and_check():
-	if TIMEOUT is None:
-		all_acks = [r for r in real_received_packet[0] if r[0] == 0xD1]
-		if len(all_acks) != len(expected_received_packet):
-			print("BAD expected", len(expected_received_packet), "ACKs, received", len(all_acks))
+	failures = 0
+	acks = [[r for r in replies if r[0] == 0xD1] for replies in real_received_packet]
 	for i, expected in enumerate(expected_received_packet):
 		j = expected[5]
+		g = j if TIMEOUT is not None else sum(group_end[:j])
 		print("Checking ACK", i, "triggered by psn", hex(int.from_bytes(sending_packets[j][9:12], "big")), "(" + packet_kind[j] + ")")
-		if TIMEOUT is not None:
-			acks = [r for r in real_received_packet[j] if r[0] == 0xD1]
-		else:
-			acks = all_acks[i:i + 1]
-		if len(acks) != 1:
-			print("  BAD expected 1 ACK, received", len(acks))
-		if acks:
-			opcode, _, _, r_qpn, r_psn = struct.unpack(">BBHII", acks[0][:12])
-			aeth, = struct.unpack(">I", acks[0][12:16])
-			received = (opcode, r_qpn & 0xFFFFFF, r_psn & 0xFFFFFF, aeth >> 29, aeth & 0xFFFFFF)
-			for name, e, r in zip(("opcode", "qpn", "psn", "ack type", "msn"), expected, received):
-				print("  OK " if e == r else "  BAD", name, "expected", hex(e), "received", hex(r))
-			print("  syndrome", hex(aeth >> 24))
+		if not acks[g]:
+			print("  BAD no ACK")
+			failures += 1
+			continue
+		reply = acks[g].pop(0)
+		opcode, _, _, r_qpn, r_psn = struct.unpack(">BBHII", reply[:12])
+		aeth, = struct.unpack(">I", reply[12:16])
+		received = (opcode, r_qpn & 0xFFFFFF, r_psn & 0xFFFFFF, aeth >> 24, aeth & 0xFFFFFF)
+		for name, e, r in zip(("opcode", "qpn", "psn", "syndrome", "msn"), expected, received):
+			print("  OK " if e == r else "  BAD", name, "expected", hex(e), "received", hex(r))
+			failures += e != r
+	for g, left in enumerate(acks):
+		for r in left:
+			nak = (r[12] >> 5) & 0x3 == 0x3
+			print("  NAK" if nak else "  BAD", "leftover psn", hex(int.from_bytes(r[9:12], "big")), "msn", int.from_bytes(r[13:16], "big"),
+				"after", packet_kind[g] if TIMEOUT is not None else "group %d" % g)
+			failures += not nak
 	for replies in real_received_packet:
 		for r in replies:
 			if r[0] == 0xDC:
-				cack = int.from_bytes(r[25:28], "big")
-				print("SACK cack_psn", hex(cack),
-					"ack_psn", hex((cack + int.from_bytes(r[14:16], "big", signed=True)) & 0xFFFFFF),
-					"sack_base", hex((cack + int.from_bytes(r[30:32], "big", signed=True)) & 0xFFFFFF),
-					"bitmap", r[32:40].hex(),
-					"ooo_count", int.from_bytes(r[42:44], "big") & 0x7FFF)
+				print("SACK cack_psn", hex(int.from_bytes(r[25:28], "big")), "bitmap", r[32:40].hex())
 			elif r[0] != 0xD1:
-				print("Unexpected opcode", hex(r[0]))
+				print("  BAD unexpected opcode", hex(r[0]))
+				failures += 1
+	if trace_file:
+		with open("expected_mem.txt", "w") as f:
+			for a in range(0, MEM_SIZE, 32):
+				if any(expected_mem[a:a + 32]):
+					f.write("%5u: %s\n" % (a, " ".join("%02x" % b for b in expected_mem[a:a + 32])))
+	return failures
 
 def save_state():
-	acks = [r for replies in real_received_packet for r in replies if r[0] == 0xD1]	
-	if acks and (int.from_bytes(acks[-1][9:12], "big"), int.from_bytes(acks[-1][13:16], "big")) != (cack, msn_now):
-		print("WARNING: the last ACK does not match the model, packets were probably lost. Restart the C++ program and delete", STATE_FILE)
-	json.dump({"qpn": qpn, "vaddr": vaddr, "cack": cack, "msn": msn_now, "arrived": sorted(arrived)}, open(STATE_FILE, "w"))
+	if not trace_file:
+		acks = [r for replies in real_received_packet for r in replies if r[0] == 0xD1]	
+		if acks and (int.from_bytes(acks[-1][9:12], "big"), int.from_bytes(acks[-1][13:16], "big")) != (cack, msn_now):
+			print("WARNING: the last ACK does not match the model, packets were probably lost. Restart the C++ program and delete", STATE_FILE)
+		json.dump({"qpn": qpn, "vaddr": vaddr, "cack": cack, "msn": msn_now, "arrived": sorted(arrived)}, open(STATE_FILE, "w"))
 
 print("+++ MRC Coyote Test +++\n")
 
 print("--- Populating sending_packets and expected_received_packet ---\n")
-run_id = random.randint(1, 255)
-print("The run id for this \"burst\" of packets is ", hex(run_id))
-for i in range(NUM_OF_PACKETS):
-	print("Building packet ", i)
-	p = (psn + i) & 0xFFFFFF
-	sending_packets.append(create_rdma_write_packet(p, msn + i, vaddr + i * 64, bytes([i + 1, run_id]) * 32))
-random.shuffle(sending_packets) # make the packets out of order
-
 packet_kind = []
-for j, packet in enumerate(sending_packets):
-	p = int.from_bytes(packet[9:12], "big")
-	d = (p - cack - 1) & 0xFFFFFF
-	if 128 <= d <= 0x800000:
-		packet_kind.append("out of window, no ACK")
-		continue
-	if d >= 128:
-		packet_kind.append("duplicate, behind cack")
-	elif p in arrived:
-		packet_kind.append("duplicate, already received above cack")
-	else:
-		packet_kind.append("new" if d == 0 else "new, ahead of a hole")
-		arrived.add(p)
-	while ((cack + 1) & 0xFFFFFF) in arrived:
-		cack = (cack + 1) & 0xFFFFFF
-		arrived.remove(cack)
-		msn_now += 1
-	expected_received_packet.append((0xD1, PEER_QPN, cack, 0, msn_now & 0xFFFFFF, j))
+group_end = []
+expected_mem = bytearray(MEM_SIZE)
+if trace_file:
+	completions = 0
+	for line in open(trace_file):
+		if not line.strip():
+			continue
+		row = json.loads(line)
+		if "qp" in row:
+			if row["qp"] == tb_qp and (row["epsn"], 0) != (psn, msn):
+				print("WARNING: the testbench starts QP", hex(tb_qp), "at psn", hex(row["epsn"]), "msn 0: restart the C++ program with -s", hex(row["epsn"]))
+			continue
+		p = bytearray.fromhex(row["packet"])
+		dqp = int.from_bytes(p[5:8], "big")
+		if dqp != tb_qp and dqp != 0x2:
+			if row["group_end"] and group_end:
+				group_end[-1] = True
+			continue
+		if dqp == tb_qp:
+			p[5:8] = qpn.to_bytes(3, "big")
+		if 0xC6 <= p[0] <= 0xCB:
+			o = 20 if p[8] & 0x10 else 16
+			va = int.from_bytes(p[o:o + 8], "big")
+			p[o:o + 8] = (vaddr + va).to_bytes(8, "big")
+			if row["exp_accepted"]:
+				data = p[o + 16 + (4 if p[0] in (0xC9, 0xCB) else 0):]
+				expected_mem[va:va + len(data)] = data
+			if row["exp_accepted"] and p[0] in (0xC8, 0xC9, 0xCA, 0xCB):
+				completions += 1
+		if row["exp_ack"]:
+			expected_received_packet.append((0xD1, PEER_QPN, row["exp_cack_psn"], row["exp_syndrome"], row["exp_ack_msn"], len(sending_packets)))
+		sending_packets.append(bytes(p) + bytes(4))
+		packet_kind.append(row["name"])
+		group_end.append(row["group_end"])
+		print("Expected WRITE messages completed on the C++ side:", completions)
+else:
+	run_id = random.randint(1, 255)
+	print("The run id for this \"burst\" of packets is ", hex(run_id))
+	for i in range(NUM_OF_PACKETS):
+		p = (psn + i) & 0xFFFFFF
+		sending_packets.append(create_rdma_write_packet(p, msn + i, vaddr + i * 64, bytes([i + 1, run_id]) * 32))
+	random.shuffle(sending_packets)
+	group_end = [False] * len(sending_packets)
+	for j, packet in enumerate(sending_packets):
+		p = int.from_bytes(packet[9:12], "big")
+		d = (p - cack - 1) & 0xFFFFFF
+		if 128 <= d <= 0x800000:
+			packet_kind.append("out of window, no ACK")
+			continue
+		if d >= 128:
+			packet_kind.append("duplicate, behind cack")
+		elif p in arrived:
+			packet_kind.append("duplicate, already received above cack")
+		else:
+			packet_kind.append("new" if d == 0 else "new, ahead of a hole")
+			arrived.add(p)
+		while ((cack + 1) & 0xFFFFFF) in arrived:
+			cack = (cack + 1) & 0xFFFFFF
+			arrived.remove(cack)
+			msn_now += 1
+		expected_received_packet.append((0xD1, PEER_QPN, cack, 0x1f, msn_now & 0xFFFFFF, j))
 print("Send order (psn):", [hex(int.from_bytes(p[9:12], "big")) for p in sending_packets])
 print("")
 
@@ -201,5 +247,7 @@ my_socket = create_udp_socket()
 print("--- Sending Packets ---\n")
 send_packets(my_socket)
 print("--- Checking ---\n")
-print_reply_and_check()
+failures = print_reply_and_check()
 save_state()
+print("\nRESULT:", "PASS" if failures == 0 else "FAIL, %d check(s) failed" % failures)
+sys.exit(1 if failures else 0)

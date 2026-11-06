@@ -53,3 +53,5 @@ docs/docs-sw/
 docs/docs-driver/
 .claude/
 fpga_state.json
+expected_mem.txt
+integration_trace.jsonl

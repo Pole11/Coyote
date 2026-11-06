@@ -39,58 +39,20 @@
 
 #include <arpa/inet.h>
 
-constexpr bool const IS_CLIENT = false;
-
 static volatile std::sig_atomic_t stop = 0;
-
-// Note, how the Coyote thread is passed by reference; to avoid creating a copy of 
-// the thread object which can lead to undefined behaviour and bugs. 
-void run_bench(
-    coyote::cThread &coyote_thread, coyote::rdmaSg &sg, 
-    int *mem, uint transfers, uint n_runs, bool operation
-) {
-    // When writing, the server asserts the written payload is correct (which the client sets)
-    // When reading, the client asserts the read payload is correct (which the server sets)
-    for (int i = 0; i < sg.len / sizeof(int); i++) {
-        mem[i] = operation ? 0 : i;        
-    }
-
-    for (int i = 0; i < n_runs; i++) {
-        // Clear previous completion flags and sync with client
-        coyote_thread.clearCompleted();
-        coyote_thread.connSync(IS_CLIENT);
-
-        // For writes, wait until client has written the targer number of messages; then write them back
-        if (operation) {
-            while (coyote_thread.checkCompleted(coyote::CoyoteOper::LOCAL_WRITE) != transfers) {}
-
-            for (int i = 0; i < transfers; i++) {
-                coyote_thread.invoke(coyote::CoyoteOper::REMOTE_RDMA_WRITE, sg);
-            }
-        // For reads, the server is completely passive 
-        } else { 
-
-        }
-    }
-    
-    // Functional correctness check
-    if (operation) {
-        for (int i = 0; i < sg.len / sizeof(int); i++) {
-            assert(mem[i] == i);                        
-        }
-    }
-}
 
 int main(int argc, char *argv[])  {
     // CLI arguments
     unsigned int min_size, max_size;
-    std::string peer_ip;
+    std::string peer_ip, psn, tb_qp;
 
-    boost::program_options::options_description runtime_options("Coyote Perf RDMA Options");
+    boost::program_options::options_description runtime_options("Coyote MRC Packet Injection Options");
     runtime_options.add_options()
         ("min_size,x", boost::program_options::value<unsigned int>(&min_size)->default_value(MIN_TRANSFER_SIZE_DEFAULT), "Starting (minimum) transfer size")
         ("max_size,X", boost::program_options::value<unsigned int>(&max_size)->default_value(MAX_TRANSFER_SIZE_DEFAULT), "Ending (maximum) transfer size")
-        ("peer_ip,p", boost::program_options::value<std::string>(&peer_ip)->default_value(""), "Host IP acting as a fake RDMA peer (RX test)");
+        ("peer_ip,p", boost::program_options::value<std::string>(&peer_ip)->default_value(""), "Host IP acting as a fake RDMA peer (RX test)")
+        ("psn,s", boost::program_options::value<std::string>(&psn)->default_value(""), "Force the first expected PSN, e.g. 0x0A0B00")
+        ("tb_qp,t", boost::program_options::value<std::string>(&tb_qp)->default_value(""), "Testbench QP to replay from integration_trace.jsonl, e.g. 0x08");
     boost::program_options::variables_map command_line_arguments;
     boost::program_options::store(boost::program_options::parse_command_line(argc, argv, runtime_options), command_line_arguments);
     boost::program_options::notify(command_line_arguments);
@@ -100,14 +62,10 @@ int main(int argc, char *argv[])  {
     std::cout << "Ending transfer size: " << max_size << std::endl;
     std::cout << "Peer you are listening to: " << peer_ip << std::endl << std::endl;
 
-    // Allocate Coyothe threa and set-up RDMA connections, buffer etc.
-    // initRDMA is explained in more detail in client/main.cpp
     coyote::cThread coyote_thread(DEFAULT_VFPGA_ID, getpid());
     if (!peer_ip.empty()) {
         int *mem = (int *) coyote_thread.getMem({coyote::CoyoteAllocType::HPF, max_size, true});
         printf("Allocated Huge Pages at = %p\n\n", (void *) mem);
-        //int *mem = (int *) coyote_thread.getMem({coyote::CoyoteAllocType::REG, max_size, true});
-        //printf("Allocated Normal Pages at = %p\n\n", (void *) mem);
 
         coyote::ibvQp *qp = coyote_thread.getQpair();
 
@@ -118,6 +76,7 @@ int main(int argc, char *argv[])  {
         qp->remote.rkey = 0;
         qp->remote.vaddr = nullptr;
 
+        if (!psn.empty()) qp->local.psn = std::stoul(psn, nullptr, 0) & 0xFFFFFF;
         coyote_thread.writeQpContext(coyote::DEF_PORT);
         coyote_thread.doArpLookup(qp->remote.ip_addr);
         coyote_thread.doArpLookup(0xC0A80101); 
@@ -135,14 +94,18 @@ int main(int argc, char *argv[])  {
         unsigned long rx = counter("IBV RX pkgs:"), drop = counter("PSN drop cnt:");
         
         std::cout << "Run this on the computer that emulates the requestor:" << std::endl;
-        printf("python3 injector.py 0x%x 0x%x 0x%lx %d\n\n", qp->local.qpn, qp->local.psn, (uint64_t) qp->local.vaddr, (int) coyote_thread.checkCompleted(coyote::CoyoteOper::LOCAL_WRITE));
+        if (!psn.empty() && !tb_qp.empty())
+            printf("python3 injector.py 0x%x 0x%x 0x%lx %d integration_trace.jsonl %s\n\n", qp->local.qpn, qp->local.psn, (uint64_t) qp->local.vaddr,
+                   (int) coyote_thread.checkCompleted(coyote::CoyoteOper::LOCAL_WRITE), tb_qp.c_str());
+        else
+            printf("python3 injector.py 0x%x 0x%x 0x%lx %d\n\n", qp->local.qpn, qp->local.psn, (uint64_t) qp->local.vaddr,
+                   (int) coyote_thread.checkCompleted(coyote::CoyoteOper::LOCAL_WRITE));
         
         while (!stop) {
-            //usleep(100000);
             unsigned long new_rx = counter("IBV RX pkgs:"), new_drop = counter("PSN drop cnt:");
             if (new_rx == rx) continue;
 
-            std::cout << "Received " << new_rx - rx << " packets, " << new_drop - drop << " dropped (duplicate or out of window)" << std::endl;            
+            std::cout << "Received " << new_rx - rx << " packets, " << new_drop - drop << " dropped (duplicate or out of window)" << std::endl;
             std::cout << "WRITE messages completed so far: " << coyote_thread.checkCompleted(coyote::CoyoteOper::LOCAL_WRITE) << std::endl;
             qp->local.psn = (qp->local.psn + (new_rx - rx) - (new_drop - drop)) & 0xFFFFFF;
             std::cout << "This is memory after the packet arrived:" << std::endl;
@@ -159,15 +122,18 @@ int main(int argc, char *argv[])  {
             
             std::cout << std::dec << std::endl;
             std::cout << "Run this on the computer that emulates the requestor:" << std::endl;
-            printf("python3 injector.py 0x%x 0x%x 0x%lx %d\n\n", qp->local.qpn, qp->local.psn, (uint64_t) qp->local.vaddr, (int) coyote_thread.checkCompleted(coyote::CoyoteOper::LOCAL_WRITE));
-            
+            printf("python3 injector.py 0x%x 0x%x 0x%lx %d\n\n", qp->local.qpn, qp->local.psn, (uint64_t) qp->local.vaddr,
+                   (int) coyote_thread.checkCompleted(coyote::CoyoteOper::LOCAL_WRITE));
+
             rx = new_rx;
             drop = new_drop;
         }
         return EXIT_SUCCESS;
     } else {
-        std::cout << "Please provide the peer address! It must be the IP address of the peer you want to receive packets from, if the computer that is emulating the requestor has the output interface with 192.168.88.254 as the IP, then run this on that machine " << std::endl << "./test -p 192.168.88.254 -X 4096" << std::endl;
+        std::cout << "Please provide the peer address! It must be the IP address of the peer you want to receive packets from, if the computer that is emulating the requestor has the output interface with 192.168.88.254 as the IP, then run this on that machine " << std::endl 
+                  << "./test -p 192.168.88.254 -X 4096" << std::endl
+                  << "To replay the integration test (QP 0x08 of the testbench) run" << std::endl
+                  << "./test -p 192.168.88.254 -X 1048576 -s 0x0A0B00 -t 0x08" << std::endl;
         return EXIT_SUCCESS;
     }
-    
 }
