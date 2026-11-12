@@ -74,6 +74,7 @@ module design_dynamic_top #(
     metaIntf.m                                  m_rdma_conn_interface,
     metaIntf.m                                  m_rdma_sq,
     metaIntf.s                                  s_rdma_cq,
+    metaIntf.s                                  s_rdma_imm,
     metaIntf.s                                  s_rdma_rq_rd,
     metaIntf.s                                  s_rdma_rq_wr,
     AXI4S.s                                     s_axis_rdma,
@@ -675,6 +676,29 @@ module design_dynamic_top #(
     axis_decoupler (.decouple(decouple_uclk), .s_axis(axis_rdma_out_req_ul), .m_axis(axis_rdma_out_req_s3));
     axis_decoupler (.decouple(decouple_uclk), .s_axis(axis_rdma_out_rsp_ul), .m_axis(axis_rdma_out_rsp_s3));
 
+    // WriteIMM completions: same stages as rdma_cq (slice 0, split by vfid, uclk crossing, slice 1, decoupling)
+    metaIntf #(.STYPE(imm_t)) rdma_imm_s0 ();
+    metaIntf #(.STYPE(imm_t)) rdma_imm_s1 [N_REGIONS] ();
+    metaIntf #(.STYPE(imm_t)) rdma_imm_s2 [N_REGIONS] ();
+    metaIntf #(.STYPE(imm_t)) rdma_imm_s3 [N_REGIONS] ();
+    metaIntf #(.STYPE(imm_t)) rdma_imm_ul [N_REGIONS] ();
+
+    meta_reg_array #(.DATA_BITS($bits(imm_t)), .N_STAGES(N_REG_DYN_NET_S0)) inst_rdma_imm_slice_0 (.aclk(aclk), .aresetn(aresetn), .s_meta(s_rdma_imm), .m_meta(rdma_imm_s0));
+
+    rdma_imm_arbiter inst_rdma_imm_arbiter (.s_meta(rdma_imm_s0), .m_meta(rdma_imm_s1));
+
+    for(genvar i = 0; i < N_REGIONS; i++) begin
+{% if cnfg.en_uclk %}
+        meta_ccross #(.DATA_BITS($bits(imm_t))) inst_rdma_imm_ccross (.s_aclk(aclk), .s_aresetn(aresetn), .m_aclk(uclk), .m_aresetn(uresetn), .s_meta(rdma_imm_s1[i]), .m_meta(rdma_imm_s2[i]));
+        meta_reg_array #(.DATA_BITS($bits(imm_t)), .N_STAGES(N_REG_DYN_NET_S1)) inst_rdma_imm_slice_1 (.aclk(uclk), .aresetn(uresetn), .s_meta(rdma_imm_s2[i]), .m_meta(rdma_imm_s3[i]));
+{% else %}
+        `META_ASSIGN(rdma_imm_s1[i], rdma_imm_s2[i])
+        meta_reg_array #(.DATA_BITS($bits(imm_t)), .N_STAGES(N_REG_DYN_NET_S1)) inst_rdma_imm_slice_1 (.aclk(aclk), .aresetn(aresetn), .s_meta(rdma_imm_s2[i]), .m_meta(rdma_imm_s3[i]));
+{% endif %}
+    end
+
+    meta_decoupler inst_rdma_imm_decoupler (.decouple(decouple_uclk), .s_meta(rdma_imm_s3), .m_meta(rdma_imm_ul));
+
 {% endif %}
 {% if cnfg.en_tcp %}
     // ================-----------------------------------------------------------------
@@ -1168,6 +1192,10 @@ module design_dynamic_top #(
         .rdma_rq_wr_valid               (rdma_rq_wr_ul[{{ i }}].valid),
         .rdma_rq_wr_ready               (rdma_rq_wr_ul[{{ i }}].ready),
         .rdma_rq_wr_data                (rdma_rq_wr_ul[{{ i }}].data), 
+
+        .rdma_imm_valid                 (rdma_imm_ul[{{ i }}].valid),
+        .rdma_imm_ready                 (rdma_imm_ul[{{ i }}].ready),
+        .rdma_imm_data                  (rdma_imm_ul[{{ i }}].data),
 
         // RDMA STREAMS
         .axis_rdma_sink_tdata           (axis_rdma_in_ul[{{ i }}].tdata),

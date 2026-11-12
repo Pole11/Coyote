@@ -52,6 +52,7 @@ module roce_stack (
     // User command
     metaIntf.s                  s_rdma_sq,
     metaIntf.m                  m_rdma_ack,
+    metaIntf.m                  m_rdma_imm,
 
     // Memory
     metaIntf.m                  m_rdma_rd_req,
@@ -123,6 +124,15 @@ assign rdma_ack.data.ack.dest = ack_meta_data[32+RDMA_QPN_BITS+1+:DEST_BITS];
 assign rdma_ack.data.ack.strm = ack_meta_data[32+RDMA_QPN_BITS+1+DEST_BITS+:STRM_BITS];
 assign rdma_ack.data.ack.rsrvd = 0;
 assign rdma_ack.data.last = ack_meta_data[32+RDMA_QPN_BITS+1+DEST_BITS+STRM_BITS+:1];
+
+// WriteIMM completions: immMeta = {last, imm, qpn} (first field in the low bits), qpn = {vfid, pid} as for the ACKs
+logic [55:0] imm_meta_data;
+
+assign m_rdma_imm.data.pid   = imm_meta_data[0+:PID_BITS];
+assign m_rdma_imm.data.vfid  = imm_meta_data[PID_BITS+:DEST_BITS];
+assign m_rdma_imm.data.imm   = imm_meta_data[16+:32];
+assign m_rdma_imm.data.last  = imm_meta_data[48];
+assign m_rdma_imm.data.rsrvd = 0;
 
 rdma_flow inst_rdma_flow (
     .aclk(nclk),
@@ -441,6 +451,10 @@ rocev2_ip rocev2_inst(
     .m_axis_rx_ack_meta_TVALID(rdma_ack.valid),
     .m_axis_rx_ack_meta_TREADY(rdma_ack.ready),
     .m_axis_rx_ack_meta_TDATA(ack_meta_data),
+    // WriteIMM completions
+    .m_axis_rx_imm_meta_TVALID(m_rdma_imm.valid),
+    .m_axis_rx_imm_meta_TREADY(m_rdma_imm.ready),
+    .m_axis_rx_imm_meta_TDATA(imm_meta_data),
 
     // IP
     .local_ip_address({local_ip_address,local_ip_address,local_ip_address,local_ip_address}), //Use IPv4 addr
@@ -518,7 +532,11 @@ rocev2_ip rocev2_inst(
     .m_axis_rx_ack_meta_V_TVALID(rdma_ack.valid),
     .m_axis_rx_ack_meta_V_TREADY(rdma_ack.ready),
     .m_axis_rx_ack_meta_V_TDATA(ack_meta_data),
-
+    // WriteIMM completions
+    .m_axis_rx_imm_meta_V_TVALID(m_rdma_imm.valid),
+    .m_axis_rx_imm_meta_V_TREADY(m_rdma_imm.ready),
+    .m_axis_rx_imm_meta_V_TDATA(imm_meta_data),
+    
     // IP
     .local_ip_address_V({local_ip_address,local_ip_address,local_ip_address,local_ip_address}), //Use IPv4 addr
 

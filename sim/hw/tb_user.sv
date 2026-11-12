@@ -95,6 +95,7 @@ module tb_user;
     metaIntf #(.STYPE(ack_t)) cq_wr(.*);
     metaIntf #(.STYPE(req_t)) rq_rd(.*);
     metaIntf #(.STYPE(req_t)) rq_wr(.*);
+    metaIntf #(.STYPE(imm_t)) rdma_imm(.*);
 
     c_meta #(.ST(req_t)) sq_rd_mon = new(sq_rd);
     c_meta #(.ST(req_t)) sq_wr_mon = new(sq_wr);
@@ -102,6 +103,7 @@ module tb_user;
     c_meta #(.ST(ack_t)) cq_wr_drv = new(cq_wr);
     c_meta #(.ST(req_t)) rq_rd_drv = new(rq_rd);
     c_meta #(.ST(req_t)) rq_wr_drv = new(rq_wr);
+    c_meta #(.ST(imm_t)) rdma_imm_drv = new(rdma_imm); // WriteIMM completions are not simulated (no network): only held at valid = 0
 
     // Generator reading from input.bin
     generator gen;
@@ -165,6 +167,7 @@ module tb_user;
         .cq_wr(cq_wr),
     `ifdef EN_RDMA
         .rq_rd(rq_rd),
+        .rdma_imm(rdma_imm),
     `endif
     `ifdef EN_NET
         .rq_wr(rq_wr),
@@ -364,6 +367,7 @@ module tb_user;
 
         // Reset of interfaces
         mem_sim.initialize();
+        rdma_imm_drv.reset_m();
 
         ctrl_sim.initialize();
         notify_sim.initialize();

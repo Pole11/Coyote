@@ -49,6 +49,7 @@ module design_user_logic_c{{ c_cnfg }}_{{ c_reg }} (
     metaIntf.s                  cq_wr,
 {% if cnfg.en_rdma %}
     metaIntf.s                  rq_rd,
+    metaIntf.s                  rdma_imm,
 {% endif %}
 {% if cnfg.en_net %}
     metaIntf.s                  rq_wr,
@@ -103,6 +104,7 @@ module design_user_logic_c{{ c_cnfg }}_{{ c_reg }} (
 //always_comb cq_wr.tie_off_s();
 {% if cnfg.en_rdma %}
 //always_comb rq_rd.tie_off_s();
+//always_comb rdma_imm.tie_off_s();
 {% endif %}
 {% if cnfg.en_net %}
 //always_comb rq_wr.tie_off_s();

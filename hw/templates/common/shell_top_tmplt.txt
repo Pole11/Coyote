@@ -741,6 +741,7 @@ module shell_top (
     // RDMA sq and acks
     metaIntf #(.STYPE(dreq_t)) rdma_sq ();
     metaIntf #(.STYPE(ack_t)) rdma_cq ();
+    metaIntf #(.STYPE(imm_t)) rdma_imm ();
 
     // RDMA interface
     metaIntf #(.STYPE(req_t)) rdma_rq_rd ();
@@ -815,6 +816,7 @@ module shell_top (
         .s_rdma_conn_interface(rdma_conn_interface),
         .s_rdma_sq(rdma_sq),
         .m_rdma_ack(rdma_cq),
+        .m_rdma_imm(rdma_imm),
         .m_rdma_rd_req(rdma_rq_rd),
         .m_rdma_wr_req(rdma_rq_wr),
         .s_axis_rdma_rd_req(axis_rdma_rd_req),
@@ -1505,6 +1507,7 @@ module shell_top (
         .m_rdma_conn_interface(rdma_conn_interface),
         .m_rdma_sq(rdma_sq),
         .s_rdma_cq(rdma_cq),
+        .s_rdma_imm(rdma_imm),
         .s_rdma_rq_rd(rdma_rq_rd),
         .s_rdma_rq_wr(rdma_rq_wr),
         .s_axis_rdma(axis_rdma_wr),

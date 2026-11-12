@@ -66,6 +66,7 @@ module network_top #(
     // Commands
     metaIntf.s                  s_rdma_sq,
     metaIntf.m                  m_rdma_ack,
+    metaIntf.m                  m_rdma_imm,
 
     // RDMA ctrl + data
     metaIntf.m                  m_rdma_rd_req,
@@ -205,6 +206,7 @@ metaIntf #(.STYPE(rdma_qp_conn_t)) rdma_conn_interface_aclk_slice (.*);
 
 metaIntf #(.STYPE(dreq_t)) rdma_sq_n_clk (.aclk(n_clk), .aresetn(n_resetn));
 metaIntf #(.STYPE(ack_t)) rdma_ack_n_clk (.aclk(n_clk), .aresetn(n_resetn));
+metaIntf #(.STYPE(imm_t)) rdma_imm_n_clk (.aclk(n_clk), .aresetn(n_resetn));
 metaIntf #(.STYPE(req_t)) rdma_rd_req_n_clk (.aclk(n_clk), .aresetn(n_resetn));
 metaIntf #(.STYPE(req_t)) rdma_wr_req_n_clk (.aclk(n_clk), .aresetn(n_resetn));
 AXI4S #(.AXI4S_DATA_BITS(AXI_NET_BITS)) axis_rdma_rd_req_n_clk (.aclk(n_clk), .aresetn(n_resetn));
@@ -213,6 +215,7 @@ AXI4S #(.AXI4S_DATA_BITS(AXI_NET_BITS)) axis_rdma_wr_n_clk (.aclk(n_clk), .arese
 
 metaIntf #(.STYPE(dreq_t)) rdma_sq_aclk (.*);
 metaIntf #(.STYPE(ack_t)) rdma_ack_aclk (.*);
+metaIntf #(.STYPE(imm_t)) rdma_imm_aclk (.*);
 metaIntf #(.STYPE(req_t)) rdma_rd_req_aclk (.*);
 metaIntf #(.STYPE(req_t)) rdma_wr_req_aclk (.*);
 AXI4S #(.AXI4S_DATA_BITS(AXI_NET_BITS)) axis_rdma_rd_req_aclk (.*);
@@ -302,6 +305,7 @@ network_stack inst_network_stack (
 
     .s_rdma_sq(rdma_sq_n_clk),
     .m_rdma_ack(rdma_ack_n_clk),
+    .m_rdma_imm(rdma_imm_n_clk),
     .m_rdma_rd_req(rdma_rd_req_n_clk),
     .m_rdma_wr_req(rdma_wr_req_n_clk),
     .s_axis_rdma_rd_req(axis_rdma_rd_req_n_clk),
@@ -482,6 +486,15 @@ network_slice_array #(
         .aclk(aclk),
         .aresetn(aresetn)
     );
+
+    // WriteIMM completions: crossed and sliced like the ACKs (rdma_ccross_net_late, rdma_slice_array_net)
+    if(CROSS_LATE == 1) begin
+        meta_ccross #(.DATA_BITS($bits(imm_t))) inst_rdma_imm_ccross (.s_aclk(n_clk), .s_aresetn(n_resetn), .m_aclk(aclk), .m_aresetn(aresetn), .s_meta(rdma_imm_n_clk), .m_meta(rdma_imm_aclk));
+    end
+    else begin
+        meta_reg #(.DATA_BITS($bits(imm_t))) inst_rdma_imm_reg_late (.aclk(aclk), .aresetn(aresetn), .s_meta(rdma_imm_n_clk), .m_meta(rdma_imm_aclk));
+    end
+    meta_reg_array #(.DATA_BITS($bits(imm_t)), .N_STAGES(N_REG_NET_S0)) inst_rdma_imm_slice (.aclk(aclk), .aresetn(aresetn), .s_meta(rdma_imm_aclk), .m_meta(m_rdma_imm));
 
     // RDMA memory
     net_mem_intf #(

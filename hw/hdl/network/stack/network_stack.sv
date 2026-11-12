@@ -59,6 +59,7 @@ module network_stack #(
 
     metaIntf.s                  s_rdma_sq,
     metaIntf.m                  m_rdma_ack,
+    metaIntf.m                  m_rdma_imm,
     metaIntf.m                  m_rdma_rd_req,
     metaIntf.m                  m_rdma_wr_req,
     AXI4S.s                     s_axis_rdma_rd_req,
@@ -830,6 +831,7 @@ roce_stack inst_roce_stack (
     // User
     .s_rdma_sq(s_rdma_sq),
     .m_rdma_ack(m_rdma_ack),
+    .m_rdma_imm(m_rdma_imm),
     .m_rdma_rd_req(m_rdma_rd_req),
     .m_rdma_wr_req(m_rdma_wr_req),
     .s_axis_rdma_rd_req(s_axis_rdma_rd_req),

@@ -129,6 +129,9 @@ module design_user_wrapper_{{ c_reg }} (
     (* io_buffer_type = "none" *) input  logic                                rdma_rq_wr_valid,
     (* io_buffer_type = "none" *) output logic                                rdma_rq_wr_ready,
     (* io_buffer_type = "none" *) input  req_t                                rdma_rq_wr_data,
+    (* io_buffer_type = "none" *) input  logic                                rdma_imm_valid,
+    (* io_buffer_type = "none" *) output logic                                rdma_imm_ready,
+    (* io_buffer_type = "none" *) input  imm_t                                rdma_imm_data,
 
     // AXI4S RDMA SINK
     (* io_buffer_type = "none" *) input  logic                                axis_rdma_sink_tlast,
@@ -353,6 +356,13 @@ module design_user_wrapper_{{ c_reg }} (
     assign rdma_rq_wr_ready                     = rdma_rq_wr.ready;
     assign rdma_rq_wr.data                      = rdma_rq_wr_data;
 
+    metaIntf #(.STYPE(imm_t)) rdma_imm (.*);
+    metaIntf #(.STYPE(imm_t)) rdma_imm_int (.*);
+
+    assign rdma_imm.valid                       = rdma_imm_valid;
+    assign rdma_imm_ready                       = rdma_imm.ready;
+    assign rdma_imm.data                        = rdma_imm_data;
+
     metaIntf #(.STYPE(req_t)) rdma_rq_rd (.*);
     metaIntf #(.STYPE(req_t)) rdma_rq_rd_int (.*);
 
@@ -501,29 +511,30 @@ module design_user_wrapper_{{ c_reg }} (
     axil_reg inst_reg_ctrl (.aclk(aclk), .aresetn(aresetn), .s_axi(axi_ctrl_user), .m_axi(axi_ctrl_user_int));
 
     // Notify
-    meta_reg #(.DATA_BITS($bits(irq_not_t)) inst_reg_not (.aclk(aclk), .aresetn(aresetn), .s_meta(notify_int), .m_meta(notify));
+    meta_reg #(.DATA_BITS($bits(irq_not_t))) inst_reg_not (.aclk(aclk), .aresetn(aresetn), .s_meta(notify_int), .m_meta(notify));
 
     // Host request
     meta_reg #(.DATA_BITS($bits(dreq_t))) inst_reg_host (.aclk(aclk), .aresetn(aresetn), .s_meta(host_sq), .m_meta(host_sq_int));
 
     // Bypass
-    meta_reg #(.DATA_BITS($bits(req_t)) inst_reg_bpss_rd (.aclk(aclk), .aresetn(aresetn), .s_meta(bpss_rd_req_int), .m_meta(bpss_rd_req));
-    meta_reg #(.DATA_BITS($bits(req_t)) inst_reg_bpss_wr (.aclk(aclk), .aresetn(aresetn), .s_meta(bpss_wr_req_int), .m_meta(bpss_wr_req));
-    meta_reg #(.DATA_BITS($bits(req_t)) inst_cq_bpss_rd  (.aclk(aclk), .aresetn(aresetn), .s_meta(bpss_rd_cq), .m_meta(bpss_rd_cq_int));
-    meta_reg #(.DATA_BITS($bits(req_t)) inst_cq_bpss_wr  (.aclk(aclk), .aresetn(aresetn), .s_meta(bpss_wr_cq), .m_meta(bpss_wr_cq_int));
+    meta_reg #(.DATA_BITS($bits(req_t))) inst_reg_bpss_rd (.aclk(aclk), .aresetn(aresetn), .s_meta(bpss_rd_req_int), .m_meta(bpss_rd_req));
+    meta_reg #(.DATA_BITS($bits(req_t))) inst_reg_bpss_wr (.aclk(aclk), .aresetn(aresetn), .s_meta(bpss_wr_req_int), .m_meta(bpss_wr_req));
+    meta_reg #(.DATA_BITS($bits(req_t))) inst_cq_bpss_rd  (.aclk(aclk), .aresetn(aresetn), .s_meta(bpss_rd_cq), .m_meta(bpss_rd_cq_int));
+    meta_reg #(.DATA_BITS($bits(req_t))) inst_cq_bpss_wr  (.aclk(aclk), .aresetn(aresetn), .s_meta(bpss_wr_cq), .m_meta(bpss_wr_cq_int));
 
 {% if cnfg.en_rdma %}
     // RDMA desc
-    meta_reg #(.DATA_BITS($bits(dreq_t)) inst_reg_rdma_sq (.aclk(aclk), .aresetn(aresetn), .s_meta(rdma_sq_int), .m_meta(rdma_sq));
-    meta_reg #(.DATA_BITS($bits(ack_t)) inst_reg_rdma_cq (.aclk(aclk), .aresetn(aresetn), .s_meta(rdma_cq), .m_meta(rdma_cq_int));
-    meta_reg #(.DATA_BITS($bits(req_t)) inst_reg_rdma_rq_rd (.aclk(aclk), .aresetn(aresetn), .s_meta(rdma_rq_rd), .m_meta(rdma_rq_rd_int));
-    meta_reg #(.DATA_BITS($bits(req_t)) inst_reg_rdma_rq_wr (.aclk(aclk), .aresetn(aresetn), .s_meta(rdma_rq_wr), .m_meta(rdma_rq_wr_int));
+    meta_reg #(.DATA_BITS($bits(dreq_t))) inst_reg_rdma_sq (.aclk(aclk), .aresetn(aresetn), .s_meta(rdma_sq_int), .m_meta(rdma_sq));
+    meta_reg #(.DATA_BITS($bits(ack_t))) inst_reg_rdma_cq (.aclk(aclk), .aresetn(aresetn), .s_meta(rdma_cq), .m_meta(rdma_cq_int));
+    meta_reg #(.DATA_BITS($bits(req_t))) inst_reg_rdma_rq_rd (.aclk(aclk), .aresetn(aresetn), .s_meta(rdma_rq_rd), .m_meta(rdma_rq_rd_int));
+    meta_reg #(.DATA_BITS($bits(req_t))) inst_reg_rdma_rq_wr (.aclk(aclk), .aresetn(aresetn), .s_meta(rdma_rq_wr), .m_meta(rdma_rq_wr_int));
+    meta_reg #(.DATA_BITS($bits(imm_t))) inst_reg_rdma_imm (.aclk(aclk), .aresetn(aresetn), .s_meta(rdma_imm), .m_meta(rdma_imm_int));
 
 {% endif %}
 {% if cnfg.en_tcp %}
     // TCP desc
-    meta_reg #(.DATA_BITS($bits(req_t)) inst_reg_tcp_sq (.aclk(aclk), .aresetn(aresetn), .s_meta(tcp_sq_int), .m_meta(tcp_sq));
-    meta_reg #(.DATA_BITS($bits(req_t)) inst_reg_tcp_rq (.aclk(aclk), .aresetn(aresetn), .s_meta(tcp_rq), .m_meta(tcp_rq_int));
+    meta_reg #(.DATA_BITS($bits(req_t))) inst_reg_tcp_sq (.aclk(aclk), .aresetn(aresetn), .s_meta(tcp_sq_int), .m_meta(tcp_sq));
+    meta_reg #(.DATA_BITS($bits(req_t))) inst_reg_tcp_rq (.aclk(aclk), .aresetn(aresetn), .s_meta(tcp_rq), .m_meta(tcp_rq_int));
 
 {% endif %}
 {% if cnfg.en_strm %}
@@ -580,6 +591,7 @@ module design_user_wrapper_{{ c_reg }} (
     `META_ASSIGN(rdma_cq, rdma_cq_int)
     `META_ASSIGN(rdma_rq_rd, rdma_rq_rd_int)
     `META_ASSIGN(rdma_rq_wr, rdma_rq_wr_int)
+    `META_ASSIGN(rdma_imm, rdma_imm_int)
 
 {% endif %} 
 {% if cnfg.en_tcp %}
@@ -1086,6 +1098,7 @@ module design_user_wrapper_{{ c_reg }} (
         .cq_wr(user_cq_wr_int),
     {% if cnfg.en_rdma %}        
         .rq_rd(user_rq_rd_int),
+        .rdma_imm(rdma_imm_int),
     {% endif %}        
     {% if cnfg.en_net %}          
         .rq_wr(user_rq_wr_int),

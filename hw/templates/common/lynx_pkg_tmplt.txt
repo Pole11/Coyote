@@ -462,11 +462,14 @@ package lynxTypes;
         logic last;
     } dack_t;
 
+    // WriteIMM completion of the MRC stack (immMeta): the ImmDt of one WriteIMM, in RQMSN order
     typedef struct packed {
-        logic [DEST_BITS-1:0] dest;
-        logic [BLEN_BITS-1:0] len;
+        logic [31:0] imm;               // ImmDt
+        logic last;                     // Last ImmDt released by its packet: it belongs to that packet's rq_wr request with last = 1
         logic [PID_BITS-1:0] pid;
-    } mux_user_t;
+        logic [DEST_BITS-1:0] vfid;
+        logic [64-32-1-PID_BITS-DEST_BITS-1:0] rsrvd;
+    } imm_t;
 
     typedef struct packed {
         logic [N_REGIONS_BITS-1:0] vfid;
