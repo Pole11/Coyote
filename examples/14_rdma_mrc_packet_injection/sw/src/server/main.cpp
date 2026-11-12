@@ -29,6 +29,7 @@
 #include <fstream>
 #include <string>
 #include <csignal>
+#include <deque>
 
 // External library for easier parsing of CLI arguments by the executable
 #include <boost/program_options.hpp>
@@ -43,7 +44,7 @@ static volatile std::sig_atomic_t stop = 0;
 
 int main(int argc, char *argv[])  {
     // CLI arguments
-    unsigned int min_size, max_size;
+    unsigned int min_size, max_size, recvs;
     std::string peer_ip, psn, tb_qp;
 
     boost::program_options::options_description runtime_options("Coyote MRC Packet Injection Options");
@@ -52,7 +53,8 @@ int main(int argc, char *argv[])  {
         ("max_size,X", boost::program_options::value<unsigned int>(&max_size)->default_value(MAX_TRANSFER_SIZE_DEFAULT), "Ending (maximum) transfer size")
         ("peer_ip,p", boost::program_options::value<std::string>(&peer_ip)->default_value(""), "Host IP acting as a fake RDMA peer (RX test)")
         ("psn,s", boost::program_options::value<std::string>(&psn)->default_value(""), "Force the first expected PSN, e.g. 0x0A0B00")
-        ("tb_qp,t", boost::program_options::value<std::string>(&tb_qp)->default_value(""), "Testbench QP to replay from integration_trace.jsonl, e.g. 0x08");
+        ("tb_qp,t", boost::program_options::value<std::string>(&tb_qp)->default_value(""), "Testbench QP to replay from integration_trace.jsonl, e.g. 0x08")
+        ("recvs,r", boost::program_options::value<unsigned int>(&recvs)->default_value(32), "Receive WQEs posted at start, one per WriteIMM (0: every WriteIMM is NAKed)");
     boost::program_options::variables_map command_line_arguments;
     boost::program_options::store(boost::program_options::parse_command_line(argc, argv, runtime_options), command_line_arguments);
     boost::program_options::notify(command_line_arguments);
@@ -78,6 +80,16 @@ int main(int argc, char *argv[])  {
 
         if (!psn.empty()) qp->local.psn = std::stoul(psn, nullptr, 0) & 0xFFFFFF;
         coyote_thread.writeQpContext(coyote::DEF_PORT);
+
+        // receive WQEs: the stack counts them, the wr_ids stay here and are paired with the completions in order
+        std::deque<uint64_t> recv_wr_ids;
+        uint64_t next_wr_id = 0;
+        auto post_recv = [&](unsigned int n) {
+            for (unsigned int i = 0; i < n; i++) recv_wr_ids.push_back(next_wr_id++);
+            if (n) coyote_thread.postRecv(n);
+        };
+        post_recv(recvs);
+
         coyote_thread.doArpLookup(qp->remote.ip_addr);
         coyote_thread.doArpLookup(0xC0A80101); 
         std::cout << "-- QP PARAMETERS: --" << std::endl;
@@ -103,8 +115,12 @@ int main(int argc, char *argv[])  {
         
         while (!stop) {
             // WriteIMM completions (vFPGA register 0): bit 63 valid, bits 47:32 QPN, bits 31:0 ImmDt; each read removes one
-            for (uint64_t c = coyote_thread.getCSR(0); c >> 63; c = coyote_thread.getCSR(0))
-                printf("WriteIMM completed: QPN 0x%lx, ImmDt 0x%08lx\n", (c >> 32) & 0xFFFF, c & 0xFFFFFFFF);
+            // each one consumed the oldest receive WQE: its wr_id is popped and a new receive is posted in its place
+            for (uint64_t c = coyote_thread.getCSR(0); c >> 63; c = coyote_thread.getCSR(0)) {
+                printf("WriteIMM completed: wr_id %lu, QPN 0x%lx, ImmDt 0x%08lx\n", recv_wr_ids.front(), (c >> 32) & 0xFFFF, c & 0xFFFFFFFF);
+                recv_wr_ids.pop_front();
+                post_recv(1);
+            }
 
             unsigned long new_rx = counter("IBV RX pkgs:"), new_drop = counter("PSN drop cnt:");
             if (new_rx == rx) continue;

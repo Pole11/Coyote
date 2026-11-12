@@ -227,6 +227,7 @@ enum class CnfgLegRegs : uint32_t {
 #define QP_CONTEXT_LPSN_OFFS                (0)
 #define QP_CONTEXT_RPSN_OFFS                (24)
 #define QP_CONTEXT_VADDR_OFFS               (0)
+#define QP_CONTEXT_POST_RECV                (0xCAFEBEEF) // vaddr that makes a QP context write a post of receive WQEs (MRC)
 
 #define CONN_CONTEXT_LQPN_OFFS              (0)
 #define CONN_CONTEXT_RQPN_OFFS              (16)

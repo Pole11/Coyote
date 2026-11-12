@@ -185,6 +185,12 @@ protected:
 	 * @param ip_addr IP address to be looked up
 	 */
 	void writeQpContext(uint32_t port);
+
+	/**
+	 * @brief Posts n receive WQEs to the QP: each WriteIMM completion consumes one (MRC). Ignored by the RC (IB) stack
+	 * @param n Number of receive WQEs
+	 */
+	void postRecv(uint16_t n);
 	
 
 	/**

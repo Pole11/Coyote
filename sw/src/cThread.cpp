@@ -1105,6 +1105,30 @@ void cThread::doArpLookup(uint32_t ip_addr) {
 	usleep(SLEEP_TIME);
 }
 
+void cThread::postRecv(uint16_t n) {
+    DBG3("cThread: Called postRecv");
+    if (!fcnfg.en_rdma) return;
+
+    // a QP context write with vaddr = QP_CONTEXT_POST_RECV: the r_key field carries n
+    uint64_t offs[3];
+    offs[0] = ((static_cast<uint64_t>(qpair->local.qpn) & 0xffffff) << QP_CONTEXT_QPN_OFFS) |
+              (static_cast<uint64_t>(n) << QP_CONTEXT_RKEY_OFFS);
+    offs[1] = 0;
+    offs[2] = static_cast<uint64_t>(QP_CONTEXT_POST_RECV) << QP_CONTEXT_VADDR_OFFS;
+
+    #ifdef EN_AVX
+    if (fcnfg.en_avx) {
+        cnfg_reg_avx[static_cast<uint32_t>(CnfgAvxRegs::RDMA_CTX_REG)] = _mm256_set_epi64x(0, offs[2], offs[1], offs[0]);
+    } else {
+    #endif
+        cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::RDMA_CTX_REG_0)] = offs[0];
+        cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::RDMA_CTX_REG_1)] = offs[1];
+        cnfg_reg[static_cast<uint32_t>(CnfgLegRegs::RDMA_CTX_REG_2)] = offs[2];
+    #ifdef EN_AVX
+    }
+    #endif
+}
+
 void cThread::writeQpContext(uint32_t port) {
     DBG3("cThread: Called writeQpContext"); 
 
