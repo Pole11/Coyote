@@ -101,12 +101,16 @@ always_comb notify.tie_off_m();
 always_comb cq_rd.tie_off_s();
 
 // WriteIMM completions: an ImmDt is released only once the write of its packet (rq_wr forwarded to sq_wr above) has
-// completed on cq_wr, i.e. its data is in host memory. The released ImmDts are not delivered to the host yet
+// completed on cq_wr, i.e. its data is in host memory. Software then reads it with getCSR(0)
 metaIntf #(.STYPE(imm_t)) rdma_imm_cpl (.*);
 
 rdma_imm_order inst_rdma_imm_order (.aclk(aclk), .aresetn(aresetn), .s_imm(rdma_imm), .s_cq_wr(cq_wr), .m_imm(rdma_imm_cpl));
 
-always_comb rdma_imm_cpl.tie_off_s();
+rdma_imm_csr inst_rdma_imm_csr (.aclk(aclk), .aresetn(aresetn), .s_imm(rdma_imm_cpl), .axi_ctrl(axi_ctrl));
+
+// Tie off unused interfaces
+always_comb notify.tie_off_m();
+always_comb cq_rd.tie_off_s();
 
 // ILA for debugging
 ila_perf_rdma inst_ila_perf_rdma (

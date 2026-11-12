@@ -9,6 +9,7 @@ STATE_FILE = "fpga_state.json"
 TIMEOUT = None 						# a number or None, use None for replays of the integration test
 IDLE = 0.2							# seconds of silence that end a group (fast mode)
 MEM_SIZE = 1 << 20					# must match -X of the C++ program
+WITH_IMM = False					# True: random mode sends WRITE ONLY with Immediate (0xcb) instead of WRITE ONLY (0xca)
 
 # receive parameters from argv
 qpn, psn, vaddr, msn = (int(x, 0) for x in sys.argv[1:5])
@@ -43,9 +44,9 @@ def create_bth(opcode, psn):
 		(1 << 31) | psn)		# a (ack request) + R=0, rtx=0, ts=0 + psn
 	return bth
 
-def create_meth(msn):
+def create_meth(msn, rqmsn=0):
 	meth = struct.pack(">HH",
-		0,						# rqmsn (only meaningful for WriteIMM)
+		rqmsn & 0xFFFF,			# rqmsn (only meaningful for WriteIMM)
 		msn & 0xFFFF)			# requestor msn
 	return meth
 
@@ -56,9 +57,10 @@ def create_reth(vaddr):
 		64)						# dma length
 	return reth
 	
-def create_rdma_write_packet(psn, msn, addr, data):
-	packet = create_bth(0xCA, psn) + create_meth(msn) + create_reth(addr) + data + bytes(4)
-	return packet
+def create_rdma_write_packet(psn, msn, addr, data, rqmsn=None, imm=None):
+	if imm is None:
+		return create_bth(0xCA, psn) + create_meth(msn) + create_reth(addr) + data + bytes(4)
+	return create_bth(0xCB, psn) + create_meth(msn, rqmsn) + create_reth(addr) + struct.pack(">I", imm) + data + bytes(4)
 
 def create_udp_socket():
 	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -216,9 +218,17 @@ if trace_file:
 else:
 	run_id = random.randint(1, 255)
 	print("The run id for this \"burst\" of packets is ", hex(run_id))
+	# WriteIMM: one per message, so RQMSN = completed messages + 1 (true only if this QP has received only WriteIMMs)
+	expected_imm = []
 	for i in range(NUM_OF_PACKETS):
 		p = (psn + i) & 0xFFFFFF
-		sending_packets.append(create_rdma_write_packet(p, msn + i, vaddr + i * 64, bytes([i + 1, run_id]) * 32))
+		if WITH_IMM:
+			expected_imm.append((run_id << 16) | (i + 1))
+			sending_packets.append(create_rdma_write_packet(p, msn + i, vaddr + i * 64, bytes([i + 1, run_id]) * 32, msn_now + i + 1, expected_imm[-1]))
+		else:
+			sending_packets.append(create_rdma_write_packet(p, msn + i, vaddr + i * 64, bytes([i + 1, run_id]) * 32))
+	if WITH_IMM:
+		print("ImmDt the C++ program must print, in this order:", [hex(x) for x in expected_imm])
 	random.shuffle(sending_packets)
 	group_end = [False] * len(sending_packets)
 	for j, packet in enumerate(sending_packets):

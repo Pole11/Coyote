@@ -102,6 +102,10 @@ int main(int argc, char *argv[])  {
                    (int) coyote_thread.checkCompleted(coyote::CoyoteOper::LOCAL_WRITE));
         
         while (!stop) {
+            // WriteIMM completions (vFPGA register 0): bit 63 valid, bits 47:32 QPN, bits 31:0 ImmDt; each read removes one
+            for (uint64_t c = coyote_thread.getCSR(0); c >> 63; c = coyote_thread.getCSR(0))
+                printf("WriteIMM completed: QPN 0x%lx, ImmDt 0x%08lx\n", (c >> 32) & 0xFFFF, c & 0xFFFFFFFF);
+
             unsigned long new_rx = counter("IBV RX pkgs:"), new_drop = counter("PSN drop cnt:");
             if (new_rx == rx) continue;
 
