@@ -95,11 +95,6 @@ end
 // Data streams for incoming RDMA WRITEs and SENDs (from remote node to network stack to local host)
 `AXISR_ASSIGN(axis_rrsp_recv[0], axis_host_send[1])
 
-// Tie off unused interfaces
-always_comb axi_ctrl.tie_off_s();
-always_comb notify.tie_off_m();
-always_comb cq_rd.tie_off_s();
-
 // WriteIMM completions: an ImmDt is released only once the write of its packet (rq_wr forwarded to sq_wr above) has
 // completed on cq_wr, i.e. its data is in host memory. Software then reads it with getCSR(0)
 metaIntf #(.STYPE(imm_t)) rdma_imm_cpl (.*);
