@@ -63,7 +63,8 @@ ssize_t cyt_attr_udp_port_show(struct kobject *kobj, struct kobj_attribute *attr
     struct bus_driver_data *bus_data = container_of(kobj, struct bus_driver_data, cyt_kobj);
     BUG_ON(!bus_data);
 
-    return sprintf(buff, "UDP port: %d, QSFP: %d\n", bus_data->net_udp_port, bus_data->qsfp);
+    // read it back from the shell (register 36), not from the driver's cached copy
+    return sprintf(buff, "UDP port: %llu, QSFP: %d\n", bus_data->shell_cnfg->net_udp_port & 0xFFFF, bus_data->qsfp);
 }
 
 ssize_t cyt_attr_udp_port_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buff, size_t count) {

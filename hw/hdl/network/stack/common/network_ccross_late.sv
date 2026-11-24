@@ -43,6 +43,7 @@ module network_ccross_late #(
     metaIntf.m              m_arp_lookup_request_nclk,
     metaIntf.m              m_set_ip_addr_nclk,
     metaIntf.m              m_set_mac_addr_nclk,
+    metaIntf.m              m_set_udp_port_nclk,
 `ifdef EN_STATS
     input  net_stat_t       s_net_stats_nclk,
 `endif  
@@ -51,6 +52,7 @@ module network_ccross_late #(
     metaIntf.s              s_arp_lookup_request_aclk,
     metaIntf.s              s_set_ip_addr_aclk,
     metaIntf.s              s_set_mac_addr_aclk,
+    metaIntf.s              s_set_udp_port_aclk,
 `ifdef EN_STATS
     output net_stat_t       m_net_stats_aclk,
 `endif

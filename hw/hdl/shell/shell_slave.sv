@@ -169,6 +169,7 @@ always_ff @(posedge aclk) begin
     m_set_ip_addr.valid <= 1'b0;
     m_set_mac_addr.valid <= 1'b0;
     m_set_udp_port.valid <= 1'b0;
+    m_set_udp_port.data <= DEF_UDP_PORT; // same reset value as network_stack, so the read back is meaningful before the first write
 `endif
 
 `ifdef EN_RDMA
@@ -302,6 +303,11 @@ always_ff @(posedge aclk) begin
           axi_rdata[0] <= TCP_FLOW;
           axi_rdata[1] <= QSFP;
         end
+
+`ifdef EN_NET
+        NET_UDPPORT_REG: // RoCE UDP port, last value sent to the network stack
+          axi_rdata[UDP_PORT_BITS-1:0] <= m_set_udp_port.data[UDP_PORT_BITS-1:0];
+`endif
 
 `ifdef EN_RDMA
         RDMA_OFFS_REG: // Offset

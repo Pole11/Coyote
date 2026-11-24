@@ -343,6 +343,7 @@ packet_sniffer packet_sniffer_inst (
     .rx_filtered_axis(m_rx_sniffer),
     .tx_filtered_axis(m_tx_sniffer),
     .filter_config(s_filter_config),
+    .local_udp_port(local_udp_port),
     .nclk(nclk),
     .nresetn_r(nresetn_r)
 );

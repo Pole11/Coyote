@@ -46,6 +46,7 @@ module packet_filter (
 
     /* Filter configuration */
     input wire [63:0]           local_filter_config,
+    input wire [15:0]           local_udp_port, // RoCE UDP port, host order (4791 = 16'h12B7)
     // Bit 00-07: reserved
     // Bit 08: ignore all ipv4
     // Bit 09: ignore all ipv6
@@ -157,7 +158,7 @@ always_comb begin
     rx_udp_ipv6         = rx_ipv6 & rx_axis_net.tdata[20*8+7:20*8] == 8'h11;
     rx_tcp_ipv4         = rx_ipv4 & rx_axis_net.tdata[23*8+7:23*8] == 8'h06;
     // rx_rocev2_ipv4      = rx_udp_ipv4 & {rx_axis_net.tdata[(16+rx_ip_header_len)*8+7:(16+rx_ip_header_len)*8], rx_axis_net.tdata[(17+rx_ip_header_len)*8+7:(17+rx_ip_header_len)*8]} == 16'hb712;
-    rx_rocev2_ipv4      = rx_udp_ipv4 & {rx_axis_net.tdata[36*8+7:36*8], rx_axis_net.tdata[37*8+7:37*8]} == 16'hb712;
+    rx_rocev2_ipv4      = rx_udp_ipv4 & {rx_axis_net.tdata[36*8+7:36*8], rx_axis_net.tdata[37*8+7:37*8]} == local_udp_port; // {byte36, byte37} is already host order, like the ethertype check
     rx_rocev2_ipv4_aeth = rx_axis_net.tdata[42*8+7:42*8] == 8'h10 | rx_axis_net.tdata[42*8+7:42*8] == 8'h0d | rx_axis_net.tdata[42*8+7:42*8] == 8'h0f | rx_axis_net.tdata[42*8+7:42*8] == 8'h11; // OP = RC_READ_RESP_(ONLY/FIRST/LAST), MRC_ACK
     rx_rocev2_ipv4_reth = rx_axis_net.tdata[42*8+7:42*8] == 8'h0a | rx_axis_net.tdata[42*8+7:42*8] == 8'h06 | rx_axis_net.tdata[42*8+7:42*8] == 8'h0b | rx_axis_net.tdata[42*8+7:42*8] == 8'h0c; // OP = RC_WRITE_(ONLY/FIRST), RC_WRITE_ONLY_WITH_IMM, RC_READ_REQUEST
 
@@ -173,7 +174,7 @@ always_comb begin
     tx_udp_ipv6         = tx_ipv6 & tx_axis_net.tdata[20*8+7:20*8] == 8'h11;
     tx_tcp_ipv4         = tx_ipv4 & tx_axis_net.tdata[23*8+7:23*8] == 8'h06;
     // tx_rocev2_ipv4      = tx_udp_ipv4 & {tx_axis_net.tdata[(16+rx_ip_header_len)*8+7:(16+rx_ip_header_len)*8], tx_axis_net.tdata[(17+rx_ip_header_len)*8+7:(17+rx_ip_header_len)*8]} == 16'hb712;
-    tx_rocev2_ipv4      = tx_udp_ipv4 & {tx_axis_net.tdata[36*8+7:36*8], tx_axis_net.tdata[37*8+7:37*8]} == 16'hb712;
+    tx_rocev2_ipv4      = tx_udp_ipv4 & {tx_axis_net.tdata[36*8+7:36*8], tx_axis_net.tdata[37*8+7:37*8]} == local_udp_port;
     tx_rocev2_ipv4_aeth = tx_axis_net.tdata[42*8+7:42*8] == 8'h10 | tx_axis_net.tdata[42*8+7:42*8] == 8'h0d | tx_axis_net.tdata[42*8+7:42*8] == 8'h0f | tx_axis_net.tdata[42*8+7:42*8] == 8'h11; // OP = RC_READ_RESP_(ONLY/FIRST/LAST), MRC_ACK
     tx_rocev2_ipv4_reth = tx_axis_net.tdata[42*8+7:42*8] == 8'h0a | tx_axis_net.tdata[42*8+7:42*8] == 8'h06 | tx_axis_net.tdata[42*8+7:42*8] == 8'h0b | tx_axis_net.tdata[42*8+7:42*8] == 8'h0c; // OP = RC_WRITE_(ONLY/FIRST), RC_WRITE_ONLY_WITH_IMM, RC_READ_REQUEST
 end
@@ -385,6 +386,7 @@ module packet_sniffer (
     AXI4S.m                     tx_filtered_axis,
     /* Filter configuration */
     metaIntf.s                  filter_config,
+    input  wire [15:0]          local_udp_port,
 
     input  wire                 nclk,
     input  wire                 nresetn_r
@@ -415,6 +417,7 @@ packet_filter packet_filter_inst (
     .rx_filtered_axis(rx_filter_before_slice),
     .tx_filtered_axis(tx_filter_before_slice),
     .local_filter_config(filter_config_r),
+    .local_udp_port(local_udp_port),
     .nclk(nclk),
     .nresetn_r(nresetn_r)
 );
