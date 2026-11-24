@@ -123,7 +123,6 @@ for(genvar i = 0; i < N_STAGES; i++) begin
         .m_axis_tdata (set_mac_addr_s[i+1].data)
     );
 
-    // inside the for loop, next to "Set IP address"
     axis_register_slice_net_32 (
         .aclk(aclk),
         .aresetn(aresetn),

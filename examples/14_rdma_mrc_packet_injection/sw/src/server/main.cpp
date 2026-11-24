@@ -84,6 +84,7 @@ int main(int argc, char *argv[])  {
         // receive WQEs: the stack counts them, the wr_ids stay here and are paired with the completions in order
         std::deque<uint64_t> recv_wr_ids;
         uint64_t next_wr_id = 0;
+        unsigned long imm_completed = 0; // completed messages at the responder: one per WriteIMM (plain WRITEs generate no completion)
         auto post_recv = [&](unsigned int n) {
             for (unsigned int i = 0; i < n; i++) recv_wr_ids.push_back(next_wr_id++);
             if (n) coyote_thread.postRecv(n);
@@ -91,7 +92,6 @@ int main(int argc, char *argv[])  {
         post_recv(recvs);
 
         coyote_thread.doArpLookup(qp->remote.ip_addr);
-        coyote_thread.doArpLookup(0xC0A80101); 
         std::cout << "-- QP PARAMETERS: --" << std::endl;
         printf("QPN: 0x%x\nPSN: 0x%x\nVADDR: 0x%lx\n\n", qp->local.qpn, qp->local.psn, (uint64_t) qp->local.vaddr);
         
@@ -120,13 +120,13 @@ int main(int argc, char *argv[])  {
                 printf("WriteIMM completed: wr_id %lu, QPN 0x%lx, ImmDt 0x%08lx\n", recv_wr_ids.front(), (c >> 32) & 0xFFFF, c & 0xFFFFFFFF);
                 recv_wr_ids.pop_front();
                 post_recv(1);
+                imm_completed++;
             }
 
             unsigned long new_rx = counter("IBV RX pkgs:"), new_drop = counter("PSN drop cnt:");
             if (new_rx == rx) continue;
-
             std::cout << "Received " << new_rx - rx << " packets, " << new_drop - drop << " dropped (duplicate or out of window)" << std::endl;
-            std::cout << "WRITE messages completed so far: " << coyote_thread.checkCompleted(coyote::CoyoteOper::LOCAL_WRITE) << std::endl;
+            std::cout << "Messages (WriteIMM) completed so far: " << imm_completed << std::endl;
             qp->local.psn = (qp->local.psn + (new_rx - rx) - (new_drop - drop)) & 0xFFFFFF;
             std::cout << "This is memory after the packet arrived:" << std::endl;
             

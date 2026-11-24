@@ -51,9 +51,9 @@ read -a SERVID
 # Program each node using parallel-ssh and the local script
 BASE_PATH=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 for servid in ${SERVID[@]}; do 
-	hostlist+="alveo-u55c-$(printf "%02d" $servid) "
+	hostlist+="rpolelli@hacc-u55c-$(printf "%02d" $servid).inf.ethz.ch "
 done
 
 echo "** Checking nodes..."
 parallel-ssh -H "$hostlist" "echo ** Login success!"
-parallel-ssh -t 0 -P -v -H "$hostlist" -x '-tt' "source /tools/Xilinx/Vivado/2024.2/settings64.sh && cd $BASE_PATH && source program_hacc_local.sh $BITSTREAM_PATH $DRIVER_PATH $DEVICE"
+parallel-ssh -t 0 -P -v -H "$hostlist" -x '-tt' "source /tools/Xilinx/Vivado/2024.2/settings64.sh && export PATH="/tools/Xilinx/Vivado/2024.2/bin:$PATH" && cd && source program_hacc_local.sh $BITSTREAM_PATH $DRIVER_PATH $DEVICE"

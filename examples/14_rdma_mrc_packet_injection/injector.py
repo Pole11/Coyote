@@ -1,15 +1,15 @@
 import socket, struct, sys, time, random, json
 
-FPGA_IP = "192.168.1.2" 			# c0a80102, change it according to your setup
+FPGA_IP = "192.168.40.40" 			# c0a80102, change it according to your setup
 PEER_QPN = 0x100         			# qp->remote.qpn set in the -p block, the FPGA sends its replies to this QPN 
 									# only useful to check that Coyote sent to the correct QPN
-OUTPUT_NET_DEV = b"enxd0c0bf267d20"	# change it according to your setup
+OUTPUT_NET_DEV = b"enp134s0f0"	# change it according to your setup
 NUM_OF_PACKETS = 5					# for now we only send write only 0xca
 STATE_FILE = "fpga_state.json"
 TIMEOUT = None 						# a number or None, use None for replays of the integration test
 IDLE = 0.2							# seconds of silence that end a group (fast mode)
 MEM_SIZE = 1 << 20					# must match -X of the C++ program
-WITH_IMM = False					# True: random mode sends WRITE ONLY with Immediate (0xcb) instead of WRITE ONLY (0xca)
+WITH_IMM = True						# True: random mode sends WRITE ONLY with Immediate (0xcb) instead of WRITE ONLY (0xca)
 
 # receive parameters from argv
 qpn, psn, vaddr, msn = (int(x, 0) for x in sys.argv[1:5])
@@ -207,14 +207,14 @@ if trace_file:
 			if row["exp_accepted"]:
 				data = p[o + 16 + (4 if p[0] in (0xC9, 0xCB) else 0):]
 				expected_mem[va:va + len(data)] = data
-			if row["exp_accepted"] and p[0] in (0xC8, 0xC9, 0xCA, 0xCB):
+			if row["exp_accepted"] and p[0] in (0xC9, 0xCB): # only WRITE LAST/ONLY with Immediate complete a message
 				completions += 1
 		if row["exp_ack"]:
 			expected_received_packet.append((0xD1, PEER_QPN, row["exp_cack_psn"], row["exp_syndrome"], row["exp_ack_msn"], len(sending_packets)))
 		sending_packets.append(bytes(p) + bytes(4))
 		packet_kind.append(row["name"])
 		group_end.append(row["group_end"])
-		print("Expected WRITE messages completed on the C++ side:", completions)
+		print("Expected messages (WriteIMM) completed on the C++ side:", completions)
 else:
 	run_id = random.randint(1, 255)
 	print("The run id for this \"burst\" of packets is ", hex(run_id))

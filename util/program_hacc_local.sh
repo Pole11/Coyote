@@ -37,7 +37,7 @@ fi
 
 #  Arguments: bistream path, driver path and device ID (optional)
 if [ "$1" == "-h" ]; then
-  echo "Usage: $0 <bitstream_path_within_base> <driver_path_within_base> <device>" >&2
+  echo "Usage: $0 <bitstream_path_within_base> <driver_path_within_base> <device> [ip_address]" >&2
   exit 0
 fi
 
@@ -54,7 +54,11 @@ CLI_PATH=/opt/hdev/cli
 IP_ADDRESS=$($CLI_PATH/hdev get network -d 1 | awk '$1 == "1:" {print $2}')
 MAC_ADDRESS=$($CLI_PATH/hdev get network -d 1 | awk '$1 == "1:" {print $3}' | tr -d '()')
 IP_HEX=$($CLI_PATH/common/address_to_hex IP $IP_ADDRESS)
+if [ -n "$4" ]; then
+  IP_HEX=$($CLI_PATH/common/address_to_hex IP $4)
+fi
 MAC_HEX=$($CLI_PATH/common/address_to_hex MAC $MAC_ADDRESS)
+
 
 # First, remove any drivers from before
 # This causes the DMA core to shut down gracefully, leading to less problems with PCIe hotplug.
