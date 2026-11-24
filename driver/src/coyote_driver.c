@@ -36,6 +36,10 @@ char *mac_addr = "000A35029DE5";
 module_param(mac_addr, charp, 0000);
 MODULE_PARM_DESC(mac_addr, "FPGA MAC address (hex)");
 
+unsigned short udp_port = 4791; // hoping that it does not create any confusion I would like to keep udp port as decimal, and not hex, just for personal tastes (I am a human)
+module_param(udp_port, ushort, 0000);
+MODULE_PARM_DESC(udp_port, "RoCE UDP port (decimal)");
+
 /// End-of-start-up time (in clock cycles); after which reconfiguration is assumed completed
 /// Primarily needed on the U55C, which has no mechanism to detect when the bitstream has been loaded
 long int eost = 1000000;

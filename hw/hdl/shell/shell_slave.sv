@@ -34,6 +34,7 @@ module shell_slave (
   // IP
   metaIntf.m                m_set_ip_addr,
   metaIntf.m                m_set_mac_addr,
+  metaIntf.m                m_set_udp_port,
 `endif
 
 `ifdef EN_RDMA
@@ -132,6 +133,8 @@ localparam integer NET_MACADDR_REG        = 33;
 localparam integer TCP_OFFS_REG           = 34;
 // 35 - (RW) : RDMA ddr offset
 localparam integer RDMA_OFFS_REG          = 35;
+// 36 (RW) : RoCE UDP port
+localparam integer NET_UDPPORT_REG        = 36;
 
 // Host DMA (XDMA/QDMA) STATS
 localparam integer HDMA_STAT_0_BPSS       = 64;
@@ -165,6 +168,7 @@ always_ff @(posedge aclk) begin
 `ifdef EN_NET
     m_set_ip_addr.valid <= 1'b0;
     m_set_mac_addr.valid <= 1'b0;
+    m_set_udp_port.valid <= 1'b0;
 `endif
 
 `ifdef EN_RDMA
@@ -181,6 +185,7 @@ always_ff @(posedge aclk) begin
 `ifdef EN_NET
     m_set_ip_addr.valid <= 1'b0;
     m_set_mac_addr.valid <= 1'b0;
+    m_set_udp_port.valid <= 1'b0;
 `endif
 
     if(slv_reg_wren) begin
@@ -211,6 +216,13 @@ always_ff @(posedge aclk) begin
             if(s_axi_ctrl.wstrb[i]) begin
               m_set_mac_addr.data[(i*8)+:8] <= s_axi_ctrl.wdata[(i*8)+:8];
               m_set_mac_addr.valid <= 1'b1;
+            end
+          end
+        NET_UDPPORT_REG: // RoCE UDP port
+          for (int i = 0; i < 4; i++) begin
+            if(s_axi_ctrl.wstrb[i]) begin
+              m_set_udp_port.data[(i*8)+:8] <= s_axi_ctrl.wdata[(i*8)+:8];
+              m_set_udp_port.valid <= 1'b1;
             end
           end
  `endif

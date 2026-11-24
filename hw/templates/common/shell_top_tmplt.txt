@@ -673,6 +673,7 @@ module shell_top (
     metaIntf #(.STYPE(logic[ARP_LUP_REQ_BITS-1:0])) arp_lookup_request();
     metaIntf #(.STYPE(logic[IP_ADDR_BITS-1:0])) set_ip_addr();
     metaIntf #(.STYPE(logic[MAC_ADDR_BITS-1:0])) set_mac_addr();
+    metaIntf #(.STYPE(logic[31:0])) set_udp_port();
 
 {% if cnfg.en_stats %} 
     // Net stats
@@ -706,6 +707,7 @@ module shell_top (
 {% if cnfg.en_net %}
         .m_set_ip_addr(set_ip_addr),
         .m_set_mac_addr(set_mac_addr),
+        .m_set_udp_port(set_udp_port),          // shell_slave instance
 {% endif %}
 {% if cnfg.en_rdma %}
         .m_ddr_offset_addr_rdma(ddr_offset_addr_rdma),
@@ -808,6 +810,7 @@ module shell_top (
         .s_arp_lookup_request(arp_lookup_request),
         .s_set_ip_addr(set_ip_addr),
         .s_set_mac_addr(set_mac_addr),
+        .s_set_udp_port(set_udp_port),          // network_top instance
 {% if cnfg.en_stats %}
         .m_net_stats(net_stats),
 {% endif %}

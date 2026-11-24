@@ -55,6 +55,7 @@ module network_top #(
     metaIntf.s                  s_arp_lookup_request,
     metaIntf.s                  s_set_ip_addr,
     metaIntf.s                  s_set_mac_addr,
+    metaIntf.s                  s_set_udp_port,                      // port list, after s_set_mac_addr
 `ifdef EN_STATS
     output net_stat_t           m_net_stats,
 `endif
@@ -190,11 +191,13 @@ network_ccross_early #(
 metaIntf #(.STYPE(logic[ARP_LUP_REQ_BITS-1:0])) arp_lookup_request_n_clk (.aclk(n_clk), .aresetn(n_resetn));
 metaIntf #(.STYPE(logic[IP_ADDR_BITS-1:0])) set_ip_addr_n_clk (.aclk(n_clk), .aresetn(n_resetn));
 metaIntf #(.STYPE(logic[MAC_ADDR_BITS-1:0])) set_mac_addr_n_clk (.aclk(n_clk), .aresetn(n_resetn));
+metaIntf #(.STYPE(logic[31:0])) set_udp_port_n_clk (.aclk(n_clk), .aresetn(n_resetn));
 net_stat_t net_stats_n_clk;
 
 metaIntf #(.STYPE(logic[ARP_LUP_REQ_BITS-1:0])) arp_lookup_request_aclk_slice (.*);
 metaIntf #(.STYPE(logic[IP_ADDR_BITS-1:0])) set_ip_addr_aclk_slice (.*);
 metaIntf #(.STYPE(logic[MAC_ADDR_BITS-1:0])) set_mac_addr_aclk_slice (.*);
+metaIntf #(.STYPE(logic[31:0])) set_udp_port_aclk_slice (.*);
 net_stat_t net_stats_aclk_slice;
 
 // RDMA
@@ -295,6 +298,7 @@ network_stack inst_network_stack (
     .s_arp_lookup_request(arp_lookup_request_n_clk),
     .s_set_ip_addr(set_ip_addr_n_clk),
     .s_set_mac_addr(set_mac_addr_n_clk),
+    .s_set_udp_port(set_udp_port_n_clk),            // network_stack
 `ifdef EN_STATS
     .m_net_stats(net_stats_n_clk),
 `endif
@@ -362,6 +366,7 @@ network_ccross_late #(
     .m_arp_lookup_request_nclk(arp_lookup_request_n_clk),
     .m_set_ip_addr_nclk(set_ip_addr_n_clk),
     .m_set_mac_addr_nclk(set_mac_addr_n_clk),
+    .m_set_udp_port_nclk(set_udp_port_n_clk),       // network_ccross_late
 `ifdef EN_STATS
     .s_net_stats_nclk(net_stats_n_clk), 
 `endif
@@ -370,6 +375,7 @@ network_ccross_late #(
     .s_arp_lookup_request_aclk(arp_lookup_request_aclk_slice),
     .s_set_ip_addr_aclk(set_ip_addr_aclk_slice),
     .s_set_mac_addr_aclk(set_mac_addr_aclk_slice),
+    .s_set_udp_port_aclk(set_udp_port_aclk_slice),
 `ifdef EN_STATS
     .m_net_stats_aclk(net_stats_aclk_slice),
 `endif
@@ -388,6 +394,7 @@ network_slice_array #(
     .m_arp_lookup_request_n(arp_lookup_request_aclk_slice),
     .m_set_ip_addr_n(set_ip_addr_aclk_slice),
     .m_set_mac_addr_n(set_mac_addr_aclk_slice),
+    .m_set_udp_port_n(set_udp_port_aclk_slice),     // network_slice_array
 `ifdef EN_STATS
     .s_net_stats_n(net_stats_aclk_slice),
 `endif
@@ -396,6 +403,7 @@ network_slice_array #(
     .s_arp_lookup_request_u(s_arp_lookup_request),
     .s_set_ip_addr_u(s_set_ip_addr),
     .s_set_mac_addr_u(s_set_mac_addr),
+    .s_set_udp_port_u(s_set_udp_port),
 `ifdef EN_STATS
     .m_net_stats_u(m_net_stats),
 `endif

@@ -241,8 +241,10 @@ package lynxTypes;
     localparam integer ARP_LUP_RSP_BITS = 56;
     localparam integer IP_ADDR_BITS = 32;
     localparam integer MAC_ADDR_BITS = 48;
+    localparam integer UDP_PORT_BITS = 16;
     localparam integer DEF_MAC_ADDRESS = 48'hE59D02350A00; // LSB first, 00:0A:35:02:9D:E5
     localparam integer DEF_IP_ADDRESS = 32'hD1D4010B; // LSB first, 0B:01:D4:D1
+    localparam integer DEF_UDP_PORT = 16'h12B7; // 4791, host byte order
     localparam integer NET_STRM_DOWN_THRS = 256;
 
     // Network buffers

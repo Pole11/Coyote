@@ -51,6 +51,12 @@ ssize_t cyt_attr_mac_show(struct kobject *kobj, struct kobj_attribute *attr, cha
 /// Set FPGA MAC address
 ssize_t cyt_attr_mac_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count);
 
+/// Get FPGA RoCE UDP port
+ssize_t cyt_attr_udp_port_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
+
+/// Set FPGA RoCE UDP port
+ssize_t cyt_attr_udp_port_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count);
+
 /// Get PR end of start-up (EOS) time
 ssize_t cyt_attr_eost_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
 

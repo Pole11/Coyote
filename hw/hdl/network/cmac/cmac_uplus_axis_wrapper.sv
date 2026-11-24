@@ -577,11 +577,11 @@ cmac_usplus_axis_0 inst_cmac_0 (
         .gt_drpclk(init_clk),
 
         // add RS-FEC
-        .ctl_tx_rsfec_enable(1),
-        .ctl_rx_rsfec_enable(1),
-        .ctl_rx_rsfec_enable_correction(1),
-        .ctl_rx_rsfec_enable_indication(1),
-        .ctl_rsfec_ieee_error_indication_mode(1),
+        .ctl_tx_rsfec_enable(1'b0),
+        .ctl_rx_rsfec_enable(1'b0),
+        .ctl_rx_rsfec_enable_correction(1'b0),
+        .ctl_rx_rsfec_enable_indication(1'b0),
+        .ctl_rsfec_ieee_error_indication_mode(1'b0),
 
         .gt0_drpdo(),
         .gt0_drprdy(),

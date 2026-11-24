@@ -85,6 +85,7 @@
 // Driver arguments; see coyote_driver.c for details
 extern char *ip_addr;
 extern char *mac_addr;
+extern unsigned short udp_port;
 extern long int eost;
 extern bool en_hmm;
 
@@ -555,7 +556,8 @@ struct cyt_shell_cnfg_regs {
     uint64_t net_mac; 
     uint64_t tcp_offs; 
     uint64_t rdma_offs; 
-    uint64_t reserved_2[28];
+    uint64_t net_udp_port;
+    uint64_t reserved_2[27];
     uint64_t hdma_debug[N_HDMA_STAT_REGS];
     uint64_t reserved_3[32 - N_HDMA_STAT_REGS];
     uint64_t net_debug[N_NET_STAT_REGS];
@@ -1143,6 +1145,7 @@ struct bus_driver_data {
     int qsfp;                               /* True if either en_rdma or en_tcp is true */
     uint32_t net_ip_addr;                   /* The FPGA's IP address */
     uint64_t net_mac_addr;                  /* The FPGA's MAC address */
+    uint16_t net_udp_port;                  /* The FPGA's RoCE UDP port */
     uint64_t eost;                          /* End of start-up time; see coyote_driver.c for details */
 
     /// Pointer to the static layer configuration registers; memory mapped during driver initialization

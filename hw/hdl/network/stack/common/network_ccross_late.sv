@@ -110,6 +110,19 @@ if(ENABLED == 1) begin
         .m_axis_tdata(m_set_mac_addr_nclk.data)
     );
 
+    axis_clock_converter_net_32 inst_cross_set_udp_port (
+        .s_axis_aresetn(aresetn),
+        .m_axis_aresetn(nresetn),
+        .s_axis_aclk(aclk),
+        .m_axis_aclk(nclk),
+        .s_axis_tvalid(s_set_udp_port_aclk.valid),
+        .s_axis_tready(s_set_udp_port_aclk.ready),
+        .s_axis_tdata(s_set_udp_port_aclk.data),
+        .m_axis_tvalid(m_set_udp_port_nclk.valid),
+        .m_axis_tready(m_set_udp_port_nclk.ready),
+        .m_axis_tdata(m_set_udp_port_nclk.data)
+    );
+
 `ifdef EN_STATS
     // Stats
     axis_clock_converter_net_512 inst_ccross_qp_interface (
@@ -167,6 +180,17 @@ else begin
         .m_axis_tvalid(m_set_mac_addr_nclk.valid),
         .m_axis_tready(m_set_mac_addr_nclk.ready),
         .m_axis_tdata(m_set_mac_addr_nclk.data)
+    );
+
+    axis_register_slice_net_32 inst_clk_cnvrt_set_udp_port_nc (
+        .aclk(aclk),
+        .aresetn(aresetn),
+        .s_axis_tvalid(s_set_udp_port_aclk.valid),
+        .s_axis_tready(s_set_udp_port_aclk.ready),
+        .s_axis_tdata(s_set_udp_port_aclk.data),
+        .m_axis_tvalid(m_set_udp_port_nclk.valid),
+        .m_axis_tready(m_set_udp_port_nclk.ready),
+        .m_axis_tdata(m_set_udp_port_nclk.data)
     );
 
 `ifdef EN_STATS

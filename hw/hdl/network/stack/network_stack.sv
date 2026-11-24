@@ -48,6 +48,7 @@ module network_stack #(
     metaIntf.s                  s_arp_lookup_request,
     metaIntf.s                  s_set_ip_addr,
     metaIntf.s                  s_set_mac_addr,
+    metaIntf.s                  s_set_udp_port,     // port list, after s_set_mac_addr
 `ifdef EN_STATS
     output net_stat_t           m_net_stats,
 `endif
@@ -210,6 +211,7 @@ reg[127:0]  link_local_ipv6_address;
 // ---------------------------------------------------------------------------------------------
 reg [IP_ADDR_BITS-1:0] local_ip_address;
 reg [MAC_ADDR_BITS-1:0] local_mac_address;
+reg [UDP_PORT_BITS-1:0] local_udp_port;             // next to local_mac_address (line 212)
 
 // Statistics
 // ---------------------------------------------------------------------------------------------
@@ -283,6 +285,7 @@ always @(posedge nclk) begin
     if (~nresetn_r) begin
         local_ip_address <= DEF_IP_ADDRESS;
         local_mac_address <= DEF_MAC_ADDRESS;
+        local_udp_port <= DEF_UDP_PORT;
     end
     else begin
         if (s_set_ip_addr.valid) begin
@@ -299,11 +302,15 @@ always @(posedge nclk) begin
             local_mac_address[39:32] <= s_set_mac_addr.data[15:8];
             local_mac_address[47:40] <= s_set_mac_addr.data[7:0];
         end
+        if (s_set_udp_port.valid) begin
+            local_udp_port <= s_set_udp_port.data[UDP_PORT_BITS-1:0];
+        end
     end
 end
 
 assign s_set_ip_addr.ready = 1'b1;
 assign s_set_mac_addr.ready = 1'b1;
+assign s_set_udp_port.ready = 1'b1;
 
 vio_ip inst_vio_ip (
     .clk(nclk),
@@ -841,6 +848,7 @@ roce_stack inst_roce_stack (
     // IP
     //.local_ip_address_V(link_local_ipv6_address), // Use IPv6 addr
     .local_ip_address(iph_ip_address), //Use IPv4 addr
+    .local_udp_port(local_udp_port),
 
     // Memory
     .m_rdma_mem_rd_cmd(m_rdma_mem_rd_cmd),

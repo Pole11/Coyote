@@ -121,9 +121,11 @@ int read_shell_config(struct bus_driver_data *data) {
         data->net_ip_addr = (uint64_t) tmp;
         ret_val = kstrtol(mac_addr, 16, &tmp);
         data->net_mac_addr = (uint64_t) tmp;
+        data->net_udp_port = udp_port;
         data->shell_cnfg->net_ip = data->net_ip_addr;
         data->shell_cnfg->net_mac = data->net_mac_addr;
-        dbg_info("set network ip %08x, mac %012llx\n", data->net_ip_addr, data->net_mac_addr);
+        data->shell_cnfg->net_udp_port = data->net_udp_port;
+        dbg_info("set network ip %08x, mac %012llx, udp port %d\n", data->net_ip_addr, data->net_mac_addr, data->net_udp_port);
     }
 
     return ret_val;
@@ -246,6 +248,7 @@ void init_spin_locks(struct bus_driver_data *data) {
 
 static struct kobj_attribute kobj_attr_ip = __ATTR(cyt_attr_ip, 0664, cyt_attr_ip_show, cyt_attr_ip_store);
 static struct kobj_attribute kobj_attr_mac = __ATTR(cyt_attr_mac, 0664, cyt_attr_mac_show, cyt_attr_mac_store);
+static struct kobj_attribute kobj_attr_udp_port = __ATTR(cyt_attr_udp_port, 0664, cyt_attr_udp_port_show, cyt_attr_udp_port_store);
 static struct kobj_attribute kobj_attr_nstats = __ATTR_RO(cyt_attr_nstats);
 static struct kobj_attribute kobj_attr_hstats = __ATTR_RO(cyt_attr_hstats);
 static struct kobj_attribute kobj_attr_prstats = __ATTR_RO(cyt_attr_prstats);
@@ -261,6 +264,7 @@ static struct kobj_attribute kobj_attr_qdma_debug_regs = __ATTR_RO(cyt_attr_qdma
 static struct attribute *attrs[] = {
     &kobj_attr_ip.attr,
     &kobj_attr_mac.attr,
+    &kobj_attr_udp_port.attr,
     &kobj_attr_nstats.attr,
     &kobj_attr_hstats.attr,
     &kobj_attr_prstats.attr,

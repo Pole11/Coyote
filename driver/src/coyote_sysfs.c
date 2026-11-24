@@ -59,6 +59,26 @@ ssize_t cyt_attr_mac_store(struct kobject *kobj, struct kobj_attribute *attr, co
     return count;
 }
 
+ssize_t cyt_attr_udp_port_show(struct kobject *kobj, struct kobj_attribute *attr, char *buff) {
+    struct bus_driver_data *bus_data = container_of(kobj, struct bus_driver_data, cyt_kobj);
+    BUG_ON(!bus_data);
+
+    return sprintf(buff, "UDP port: %d, QSFP: %d\n", bus_data->net_udp_port, bus_data->qsfp);
+}
+
+ssize_t cyt_attr_udp_port_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buff, size_t count) {
+    struct bus_driver_data *bus_data = container_of(kobj, struct bus_driver_data, cyt_kobj);
+    BUG_ON(!bus_data);
+
+    if (kstrtou16(buff, 0, &bus_data->net_udp_port))
+        return -EINVAL;
+
+    dbg_info("coyote-sysfs:  setting UDP port to: %d\n", bus_data->net_udp_port);
+    bus_data->shell_cnfg->net_udp_port = bus_data->net_udp_port;
+
+    return count;
+}
+
 ssize_t cyt_attr_eost_show(struct kobject *kobj, struct kobj_attribute *attr, char *buff) {   
     struct bus_driver_data *bus_data = container_of(kobj, struct bus_driver_data, cyt_kobj);
     BUG_ON(!bus_data); 

@@ -63,6 +63,7 @@ module roce_stack (
 
     // IP
     input  logic [31:0]         local_ip_address,
+    input  logic [15:0]         local_udp_port,
 
     // Memory
     metaIntf.m                  m_rdma_mem_rd_cmd,
@@ -458,7 +459,8 @@ rocev2_ip rocev2_inst(
 
     // IP
     .local_ip_address({local_ip_address,local_ip_address,local_ip_address,local_ip_address}), //Use IPv4 addr
-    
+    .local_udp_port(local_udp_port),        // VITIS_HLS branch, after .local_ip_address(...)
+
     // DBG
     .regIbvCountRx(ibv_rx_pkg_count_data),
     .regIbvCountRx_ap_vld(ibv_rx_pkg_count_valid),
@@ -539,7 +541,8 @@ rocev2_ip rocev2_inst(
     
     // IP
     .local_ip_address_V({local_ip_address,local_ip_address,local_ip_address,local_ip_address}), //Use IPv4 addr
-
+    .local_udp_port_V(local_udp_port),      // legacy Vivado HLS branch, after .local_ip_address_V(...)
+    
     .regIbvCountRx_V(ibv_rx_pkg_count_data),
     .regIbvCountRx_V_ap_vld(ibv_rx_pkg_count_valid),
     .regIbvCountTx_V(ibv_tx_pkg_count_data),
